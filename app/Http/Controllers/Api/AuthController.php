@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -14,9 +15,15 @@ class AuthController extends Controller
     {
         $request->validate([
             'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
+            'email'    => 'required|email',
             'password' => 'required|min:6|confirmed',
         ]);
+
+        $existingUser = User::where('email', $request->email)->first();
+
+        if ($existingUser) {
+            return apiResponse(false,"User already exists!",null,400);
+        }
 
         $user = User::create([
             'name'     => $request->name,
@@ -24,7 +31,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        return response()->json(['message' => 'User registered successfully'], 201);
+        return apiResponse(true,"User registered successfully",new UserResource($user),200);
     }
 
     public function login(Request $request)
@@ -37,15 +44,14 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return apiResponse(false,"Invalid credentials",401);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
-        ]);
+        return apiResponse(true,"Login successfully",[
+            'user '=>new UserResource($user),
+            'token' => $token],200);
     }
 
     public function user(Request $request)
