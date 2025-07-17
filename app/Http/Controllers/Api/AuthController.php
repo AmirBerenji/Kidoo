@@ -57,7 +57,10 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
-        return apiResponse(true,"test",new UserResource($user),200);
+        if (!$user) {
+            return apiResponse(false,"Unauthorized",null,401);
+        }
+            return apiResponse(true,"test",new UserResource($user),200);
 
     }
 
