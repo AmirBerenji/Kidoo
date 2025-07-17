@@ -31,7 +31,12 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        return apiResponse(true,"User registered successfully",new UserResource($user),200);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return apiResponse(true,"User registered successfully",[
+            'user' => new UserResource($user),
+            'token' => $token
+        ],200);
     }
 
     public function login(Request $request)
@@ -57,7 +62,10 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
-        return apiResponse(true,"test",new UserResource($user),200);
+        if (!$user) {
+            return apiResponse(false,"Unauthorized",null,401);
+        }
+            return apiResponse(true,"test",new UserResource($user),200);
 
     }
 
