@@ -21,6 +21,7 @@ return new class extends Migration
             $table->text('special_cases')->nullable();
             $table->text('age_groups')->nullable();
             $table->string('fixed_package_title')->nullable();
+            $table->timestamps();
         });
     }
 
