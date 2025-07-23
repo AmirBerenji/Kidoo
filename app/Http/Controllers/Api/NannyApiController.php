@@ -51,6 +51,9 @@ class NannyApiController extends Controller
             'nannytranslation.*.full_name' => 'required|string',
             'nannytranslation.*.specialization' => 'nullable|string',
             'nannytranslation.*.age_groups' => 'nullable|string',
+            'photos' => 'nullable|array',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'profile_photo_index' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -75,6 +78,8 @@ class NannyApiController extends Controller
                 if ($request->has('nannytranslation')) {
                     $nanny->translations()->createMany($request->nannytranslation);
                 }
+
+
 
                 return $nanny->load([
                     'location',
