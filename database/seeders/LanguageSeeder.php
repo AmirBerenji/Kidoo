@@ -19,5 +19,9 @@ class LanguageSeeder extends Seeder
             ['code' => 'hy', 'name' => 'Armenian'],
             ['code' => 'ru', 'name' => 'Russian'],
         ]);
+        DB::table('locations')->insert([
+            ['city' => 'Yeredvan', 'postal_code' => '0055'],
+            ['city' => 'Sevan', 'postal_code' => '0055'],
+        ]);
     }
 }

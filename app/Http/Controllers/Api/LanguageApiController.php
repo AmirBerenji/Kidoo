@@ -12,7 +12,8 @@ class LanguageApiController extends Controller
 {
     public function index()
     {
-        return LanguageResource::collection(Language::all());
+        $languages =  LanguageResource::collection(Language::all());
+        return apiResponse(true,"success",$languages);
     }
 
     public function store(Request $request)
