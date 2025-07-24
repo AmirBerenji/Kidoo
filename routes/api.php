@@ -4,7 +4,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DegreeController;
 use App\Http\Controllers\Api\LanguageApiController;
-use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\LocationApicontroller;
 use App\Http\Controllers\Api\NannyApiController;
 use App\Http\Controllers\Api\ServiceController;
 
@@ -22,7 +22,7 @@ Route::prefix('user')->group(function () {
 
 
 Route::apiResource('nannies', NannyApiController::class);
-Route::apiResource('locations', LocationController::class);
+Route::apiResource('locations', LocationApicontroller::class);
 Route::apiResource('languages', LanguageApiController::class);
 Route::apiResource('services', ServiceController::class);
 Route::apiResource('degrees', DegreeController::class);
