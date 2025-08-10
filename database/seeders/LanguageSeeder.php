@@ -20,8 +20,16 @@ class LanguageSeeder extends Seeder
             ['code' => 'ru', 'name' => 'Russian'],
         ]);
         DB::table('locations')->insert([
-            ['city' => 'Yeredvan', 'postal_code' => '0055'],
+            ['city' => 'Yerevan', 'postal_code' => '0055'],
             ['city' => 'Sevan', 'postal_code' => '0055'],
+            ['city' => 'Garni', 'postal_code' => '0055'],
+            ['city' => 'Ashtarak', 'postal_code' => '0055'],
+        ]);
+        DB::table('roles')->insert([
+            ['name' => 'parent'],
+            ['name' => 'doctor'],
+            ['name' => 'nurse'],
+            ['name' => 'admin'],
         ]);
     }
 }
