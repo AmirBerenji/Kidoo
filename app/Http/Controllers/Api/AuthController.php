@@ -73,6 +73,7 @@ class AuthController extends Controller
         if (!$user) {
             return apiResponse(false,"Unauthorized",null,401);
         }
+
             return apiResponse(true,"User with Role",new UserResource($user),200);
 
     }
