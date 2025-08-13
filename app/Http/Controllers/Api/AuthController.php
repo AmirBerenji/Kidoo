@@ -9,17 +9,24 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+
     public function register(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name'     => 'required|string|max:255',
             'email'    => 'required|email',
             'password' => 'required|min:6|confirmed',
-            'role'     => 'required|string|in:parent,doctor,nurse', // Validate role
+            'phone'    => 'nullable|min:5',
+            'role'     => 'required|string|in:parent,doctor,nurse',
         ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, "Validation failed", $validator->errors(), 400);
+        }
 
         // Check if user already exists
         if (User::where('email', $request->email)->exists()) {
@@ -31,14 +38,16 @@ class AuthController extends Controller
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
+            'phone'    => $request->phone,
         ]);
 
         // Assign role
         $role = Role::where('name', $request->role)->first();
-        if ($role) {
-            $user->roles()->attach($role->id);
+        if (!$role) {
+            return apiResponse(false, "User role is not correct", null, 400);
         }
 
+        $user->roles()->attach($role->id);
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -47,6 +56,7 @@ class AuthController extends Controller
             'token' => $token
         ], 200);
     }
+
     public function login(Request $request)
     {
         $request->validate([
