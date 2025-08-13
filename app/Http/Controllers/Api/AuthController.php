@@ -94,4 +94,28 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Logged out']);
     }
+
+    public function update(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name'  => 'required|string|max:255',
+            'phone' => 'nullable|string|min:5',
+        ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, "Validation failed", $validator->errors(), 400);
+        }
+
+        $user = auth()->user(); // current logged-in user
+
+        if (!$user) {
+            return apiResponse(false, "User not found", null, 404);
+        }
+
+        $user->name  = $request->name;
+        $user->phone = $request->phone;
+        $user->save();
+
+        return apiResponse(true, "Profile updated successfully", $user, 200);
+    }
 }
