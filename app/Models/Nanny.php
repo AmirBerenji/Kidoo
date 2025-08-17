@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Nanny extends Model
 {
     protected $fillable = [
+        'user_id',
         'gender',
         'location_id',
         'years_experience',

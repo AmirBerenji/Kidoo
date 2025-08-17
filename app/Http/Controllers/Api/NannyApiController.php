@@ -7,6 +7,7 @@ use App\Http\Resources\NannyResource;
 use App\Models\Nanny;
 use App\Models\NannyTranslation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -25,7 +26,6 @@ class NannyApiController extends Controller
             ])->get()
         );
     }
-
 
     public function store(Request $request)
     {
@@ -62,7 +62,7 @@ class NannyApiController extends Controller
 
         try {
             $nanny = DB::transaction(function () use ($request) {
-                // Normalize gender and commitment_type input values
+                // Normalize values
                 $normalized = $request->only([
                     'gender', 'location_id', 'years_experience', 'working_hours',
                     'days_available', 'commitment_type', 'hourly_rate',
@@ -71,6 +71,8 @@ class NannyApiController extends Controller
                     'is_verified', 'video_intro_url', 'resume_url',
                 ]);
 
+                // ✅ Add the authenticated user ID
+                $normalized['user_id'] = Auth::id();
 
                 $nanny = Nanny::create($normalized);
 
@@ -79,24 +81,20 @@ class NannyApiController extends Controller
                     $nanny->translations()->createMany($request->nannytranslation);
                 }
 
-
-
                 return $nanny->load([
                     'location',
                     'translations',
-                    'photos', // if you plan to support later
+                    'photos',
                 ]);
             });
 
-            return new NannyResource($nanny);
+            return apiResponse(true,"Your information saved correctly",new NannyResource($nanny),200);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error occurred while creating nanny.',
-                'error' => $e->getMessage()
-            ], 500);
+            return apiResponse(false,'Error occurred while creating nanny.',$e->getMessage(),500);
         }
     }
+
 
     public function show(Nanny $nanny)
     {
