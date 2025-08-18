@@ -1,6 +1,5 @@
 <?php
 
-
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DegreeController;
 use App\Http\Controllers\Api\LanguageApiController;
@@ -22,7 +21,12 @@ Route::prefix('user')->group(function () {
 });
 
 
-Route::apiResource('nannies', NannyApiController::class);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('nannies', NannyApiController::class);
+});
+
+
+
 Route::apiResource('locations', LocationApicontroller::class);
 Route::apiResource('languages', LanguageApiController::class);
 Route::apiResource('services', ServiceController::class);
