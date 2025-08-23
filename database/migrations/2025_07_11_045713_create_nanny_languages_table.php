@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('nanny_id')->constrained()->onDelete('cascade');
             $table->foreignId('language_id')->constrained()->onDelete('cascade');
+            $table->timestamps();
         });
     }
 

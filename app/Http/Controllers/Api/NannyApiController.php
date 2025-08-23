@@ -13,18 +13,214 @@ use Illuminate\Support\Facades\Validator;
 
 class NannyApiController extends Controller
 {
-    public function index()
+
+    public function index(Request $request)
     {
-        return NannyResource::collection(
-            Nanny::with([
-                'location',
-                'languages',
-                'services.translations',
-                'degrees.translations',
-                'translations',
-                'photos'
-            ])->get()
-        );
+        try {
+            // Start with base query
+            $query = Nanny::query();
+
+            // Essential relationships - load only what's needed
+            $query->with([
+                'location:id,name,state,country',
+                'translations' => function($q) {
+                    $q->select('id', 'nanny_id', 'language_code', 'full_name', 'specialization', 'age_groups');
+                },
+                'photos' => function($q) {
+                    $q->select('id', 'nanny_id', 'photo_url', 'is_profile_photo', 'order')
+                        ->orderBy('order');
+                },
+                'languages:id,name,code'
+            ]);
+
+            // Performance optimization - select only needed columns
+            $query->select([
+                'id', 'user_id', 'gender', 'location_id', 'years_experience',
+                'working_hours', 'days_available', 'commitment_type', 'hourly_rate',
+                'contact_enabled', 'booking_type', 'is_verified', 'created_at', 'updated_at'
+            ]);
+
+            // Core filters
+            $this->applyFilters($query, $request);
+
+            // Sorting
+            $this->applySorting($query, $request);
+
+            // Pagination
+            $perPage = min($request->get('per_page', 15), 50);
+            $nannies = $query->paginate($perPage);
+
+            return apiResponse(true,"",[
+                'nannies' => NannyResource::collection($nannies->items()),
+                'pagination' => [
+                    'current_page' => $nannies->currentPage(),
+                    'last_page' => $nannies->lastPage(),
+                    'per_page' => $nannies->perPage(),
+                    'total' => $nannies->total(),
+                    'has_more_pages' => $nannies->hasMorePages(),
+                ],
+                'filters_applied' => $this->getAppliedFilters($request),
+                'total_available' => $nannies->total()
+            ],200);
+
+        } catch (\Exception $e) {
+            Log::error('Nannies Index Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request_data' => $request->except(['photos'])
+            ]);
+
+            return apiResponse(false,'Unable to retrieve nannies. Please try again.',null,500);
+        }
+    }
+
+    /**
+     * Apply filters to the query
+     */
+    private function applyFilters($query, Request $request)
+    {
+        // Only verified nannies by default
+        if ($request->get('include_unverified') !== 'true') {
+            $query->where('is_verified', true);
+        }
+
+        // Location filter
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+
+        // Gender filter
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->gender);
+        }
+
+        // Experience filters
+        if ($request->filled('min_experience')) {
+            $query->where('years_experience', '>=', $request->min_experience);
+        }
+        if ($request->filled('max_experience')) {
+            $query->where('years_experience', '<=', $request->max_experience);
+        }
+
+        // Rate filters
+        if ($request->filled('min_rate')) {
+            $query->where('hourly_rate', '>=', $request->min_rate);
+        }
+        if ($request->filled('max_rate')) {
+            $query->where('hourly_rate', '<=', $request->max_rate);
+        }
+
+        // Commitment type
+        if ($request->filled('commitment_type')) {
+            $query->where('commitment_type', $request->commitment_type);
+        }
+
+        // Booking type
+        if ($request->filled('booking_type')) {
+            $query->where('booking_type', $request->booking_type);
+        }
+
+        // Only contactable nannies
+        if ($request->get('contactable_only') === 'true') {
+            $query->where('contact_enabled', true);
+        }
+
+        // Available on specific days
+        if ($request->filled('available_days')) {
+            $days = explode(',', $request->available_days);
+            foreach ($days as $day) {
+                $query->where('days_available', 'LIKE', '%' . trim($day) . '%');
+            }
+        }
+
+        // Search in name/specialization
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->whereHas('translations', function($q) use ($searchTerm) {
+                $q->where(function($subQuery) use ($searchTerm) {
+                    $subQuery->where('full_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('specialization', 'LIKE', "%{$searchTerm}%");
+                });
+            });
+        }
+
+        // Language filter
+        if ($request->filled('languages')) {
+            $languageIds = explode(',', $request->languages);
+            $query->whereHas('languages', function($q) use ($languageIds) {
+                $q->whereIn('languages.id', $languageIds);
+            });
+        }
+    }
+
+    /**
+     * Apply sorting to the query
+     */
+    private function applySorting($query, Request $request)
+    {
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $allowedSortFields = [
+            'created_at', 'updated_at', 'years_experience',
+            'hourly_rate', 'gender'
+        ];
+
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+
+        // Always add a secondary sort for consistency
+        if ($sortBy !== 'created_at') {
+            $query->orderBy('created_at', 'desc');
+        }
+    }
+
+    /**
+     * Get applied filters for response
+     */
+    private function getAppliedFilters(Request $request)
+    {
+        return array_filter([
+            'location_id' => $request->location_id,
+            'gender' => $request->gender,
+            'min_experience' => $request->min_experience,
+            'max_experience' => $request->max_experience,
+            'min_rate' => $request->min_rate,
+            'max_rate' => $request->max_rate,
+            'commitment_type' => $request->commitment_type,
+            'booking_type' => $request->booking_type,
+            'search' => $request->search,
+            'languages' => $request->languages,
+            'available_days' => $request->available_days,
+            'contactable_only' => $request->get('contactable_only') === 'true',
+            'include_unverified' => $request->get('include_unverified') === 'true'
+        ]);
+    }
+
+    /**
+     * Success response helper
+     */
+    private function successResponse($data, $message = 'Nannies retrieved successfully')
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data
+        ], 200);
+    }
+
+    /**
+     * Error response helper
+     */
+    private function errorResponse($message = 'An error occurred', $statusCode = 500)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'data' => null
+        ], $statusCode);
     }
 
     public function store(Request $request)
@@ -47,10 +243,11 @@ class NannyApiController extends Controller
             'resume_url' => 'nullable|url',
 
             'nannytranslation' => 'nullable|array',
-            'nannytranslation.*.language_code' => 'required|string',
+            'nannytranslation.*.language_code' => 'required|exists:languages,id',
             'nannytranslation.*.full_name' => 'required|string',
             'nannytranslation.*.specialization' => 'nullable|string',
             'nannytranslation.*.age_groups' => 'nullable|string',
+
             'photos' => 'nullable|array',
             'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'profile_photo_index' => 'nullable|integer|min:0',
@@ -65,36 +262,74 @@ class NannyApiController extends Controller
                 // Normalize values
                 $normalized = $request->only([
                     'gender', 'location_id', 'years_experience', 'working_hours',
-                    'days_available', 'commitment_type', 'hourly_rate',
-                    'fixed_package_description', 'contact_enabled',
-                    'booking_type', 'availability_calendar',
+                    'days_available', 'hourly_rate', 'fixed_package_description',
+                    'contact_enabled', 'booking_type', 'availability_calendar',
                     'is_verified', 'video_intro_url', 'resume_url',
                 ]);
 
-                // ✅ Add the authenticated user ID
+                // Normalize commitment_type to consistent format
+                if ($request->has('commitment_type')) {
+                    $normalized['commitment_type'] = ucfirst(strtolower(str_replace('_', '-', $request->commitment_type)));
+                }
+
+                // Add the authenticated user ID
                 $normalized['user_id'] = Auth::id();
+
+                // Convert empty URLs to null
+                if (empty($normalized['video_intro_url'])) {
+                    $normalized['video_intro_url'] = null;
+                }
+                if (empty($normalized['resume_url'])) {
+                    $normalized['resume_url'] = null;
+                }
 
                 $nanny = Nanny::create($normalized);
 
-                // Handle translations
+                // Handle translations and languages
                 if ($request->has('nannytranslation')) {
+                    // Create translations
                     $nanny->translations()->createMany($request->nannytranslation);
+
+                    // Attach languages (using language IDs)
+                    $languageIds = collect($request->nannytranslation)->pluck('language_code')->unique();
+                    $nanny->languages()->attach($languageIds);
+                }
+
+                // Handle photo uploads
+                if ($request->hasFile('photos')) {
+                    $profilePhotoIndex = $request->input('profile_photo_index', 0);
+
+                    foreach ($request->file('photos') as $index => $photo) {
+                        $filename = time() . '_' . $index . '.' . $photo->getClientOriginalExtension();
+                        $path = $photo->storeAs('nanny_photos', $filename, 'public');
+
+                        $nanny->photos()->create([
+                            'photo_url' => Storage::url($path),
+                            'is_profile_photo' => $index == $profilePhotoIndex,
+                            'order' => $index,
+                        ]);
+                    }
                 }
 
                 return $nanny->load([
                     'location',
                     'translations',
+                    'languages',
                     'photos',
                 ]);
             });
 
-            return apiResponse(true,"Your information saved correctly",new NannyResource($nanny),200);
+            return apiResponse(true, "Your information saved correctly", new NannyResource($nanny), 200);
 
         } catch (\Exception $e) {
-            return apiResponse(false,'Error occurred while creating nanny.',$e->getMessage(),500);
+            Log::error('Error creating nanny: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'request_data' => $request->except(['photos']) // Exclude files from logs
+            ]);
+
+            return apiResponse(false, 'Error occurred while creating nanny.', null, 500);
         }
     }
-
 
     public function show(Nanny $nanny)
     {

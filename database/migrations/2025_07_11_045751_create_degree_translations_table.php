@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('degree_id')->constrained()->onDelete('cascade');
             $table->string('language_code', 5);
             $table->string('title');
+            $table->timestamps();
         });
     }
 
