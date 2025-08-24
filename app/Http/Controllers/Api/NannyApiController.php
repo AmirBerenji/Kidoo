@@ -75,154 +75,6 @@ class NannyApiController extends Controller
         }
     }
 
-    /**
-     * Apply filters to the query
-     */
-    private function applyFilters($query, Request $request)
-    {
-        // Only verified nannies by default
-        if ($request->get('include_unverified') !== 'true') {
-            $query->where('is_verified', true);
-        }
-
-        // Location filter
-        if ($request->filled('location_id')) {
-            $query->where('location_id', $request->location_id);
-        }
-
-        // Gender filter
-        if ($request->filled('gender')) {
-            $query->where('gender', $request->gender);
-        }
-
-        // Experience filters
-        if ($request->filled('min_experience')) {
-            $query->where('years_experience', '>=', $request->min_experience);
-        }
-        if ($request->filled('max_experience')) {
-            $query->where('years_experience', '<=', $request->max_experience);
-        }
-
-        // Rate filters
-        if ($request->filled('min_rate')) {
-            $query->where('hourly_rate', '>=', $request->min_rate);
-        }
-        if ($request->filled('max_rate')) {
-            $query->where('hourly_rate', '<=', $request->max_rate);
-        }
-
-        // Commitment type
-        if ($request->filled('commitment_type')) {
-            $query->where('commitment_type', $request->commitment_type);
-        }
-
-        // Booking type
-        if ($request->filled('booking_type')) {
-            $query->where('booking_type', $request->booking_type);
-        }
-
-        // Only contactable nannies
-        if ($request->get('contactable_only') === 'true') {
-            $query->where('contact_enabled', true);
-        }
-
-        // Available on specific days
-        if ($request->filled('available_days')) {
-            $days = explode(',', $request->available_days);
-            foreach ($days as $day) {
-                $query->where('days_available', 'LIKE', '%' . trim($day) . '%');
-            }
-        }
-
-        // Search in name/specialization
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->whereHas('translations', function($q) use ($searchTerm) {
-                $q->where(function($subQuery) use ($searchTerm) {
-                    $subQuery->where('full_name', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('specialization', 'LIKE', "%{$searchTerm}%");
-                });
-            });
-        }
-
-        // Language filter
-        if ($request->filled('languages')) {
-            $languageIds = explode(',', $request->languages);
-            $query->whereHas('languages', function($q) use ($languageIds) {
-                $q->whereIn('languages.id', $languageIds);
-            });
-        }
-    }
-
-    /**
-     * Apply sorting to the query
-     */
-    private function applySorting($query, Request $request)
-    {
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortDirection = $request->get('sort_direction', 'desc');
-
-        $allowedSortFields = [
-            'created_at', 'updated_at', 'years_experience',
-            'hourly_rate', 'gender'
-        ];
-
-        if (in_array($sortBy, $allowedSortFields)) {
-            $query->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
-        }
-
-        // Always add a secondary sort for consistency
-        if ($sortBy !== 'created_at') {
-            $query->orderBy('created_at', 'desc');
-        }
-    }
-
-    /**
-     * Get applied filters for response
-     */
-    private function getAppliedFilters(Request $request)
-    {
-        return array_filter([
-            'location_id' => $request->location_id,
-            'gender' => $request->gender,
-            'min_experience' => $request->min_experience,
-            'max_experience' => $request->max_experience,
-            'min_rate' => $request->min_rate,
-            'max_rate' => $request->max_rate,
-            'commitment_type' => $request->commitment_type,
-            'booking_type' => $request->booking_type,
-            'search' => $request->search,
-            'languages' => $request->languages,
-            'available_days' => $request->available_days,
-            'contactable_only' => $request->get('contactable_only') === 'true',
-            'include_unverified' => $request->get('include_unverified') === 'true'
-        ]);
-    }
-
-    /**
-     * Success response helper
-     */
-    private function successResponse($data, $message = 'Nannies retrieved successfully')
-    {
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => $data
-        ], 200);
-    }
-
-    /**
-     * Error response helper
-     */
-    private function errorResponse($message = 'An error occurred', $statusCode = 500)
-    {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-            'data' => null
-        ], $statusCode);
-    }
-
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -389,4 +241,129 @@ class NannyApiController extends Controller
         $nanny->delete();
         return response()->noContent();
     }
+
+    /**
+     * Apply filters to the query
+     */
+    private function applyFilters($query, Request $request)
+    {
+        // Only verified nannies by default
+        if ($request->get('include_unverified') !== 'true') {
+            $query->where('is_verified', true);
+        }
+
+        // Location filter
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+
+        // Gender filter
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->gender);
+        }
+
+        // Experience filters
+        if ($request->filled('min_experience')) {
+            $query->where('years_experience', '>=', $request->min_experience);
+        }
+        if ($request->filled('max_experience')) {
+            $query->where('years_experience', '<=', $request->max_experience);
+        }
+
+        // Rate filters
+        if ($request->filled('min_rate')) {
+            $query->where('hourly_rate', '>=', $request->min_rate);
+        }
+        if ($request->filled('max_rate')) {
+            $query->where('hourly_rate', '<=', $request->max_rate);
+        }
+
+        // Commitment type
+        if ($request->filled('commitment_type')) {
+            $query->where('commitment_type', $request->commitment_type);
+        }
+
+        // Booking type
+        if ($request->filled('booking_type')) {
+            $query->where('booking_type', $request->booking_type);
+        }
+
+        // Only contactable nannies
+        if ($request->get('contactable_only') === 'true') {
+            $query->where('contact_enabled', true);
+        }
+
+        // Available on specific days
+        if ($request->filled('available_days')) {
+            $days = explode(',', $request->available_days);
+            foreach ($days as $day) {
+                $query->where('days_available', 'LIKE', '%' . trim($day) . '%');
+            }
+        }
+
+        // Search in name/specialization
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->whereHas('translations', function($q) use ($searchTerm) {
+                $q->where(function($subQuery) use ($searchTerm) {
+                    $subQuery->where('full_name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('specialization', 'LIKE', "%{$searchTerm}%");
+                });
+            });
+        }
+
+        // Language filter
+        if ($request->filled('languages')) {
+            $languageIds = explode(',', $request->languages);
+            $query->whereHas('languages', function($q) use ($languageIds) {
+                $q->whereIn('languages.id', $languageIds);
+            });
+        }
+    }
+
+    /**
+     * Apply sorting to the query
+     */
+    private function applySorting($query, Request $request)
+    {
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $allowedSortFields = [
+            'created_at', 'updated_at', 'years_experience',
+            'hourly_rate', 'gender'
+        ];
+
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+
+        // Always add a secondary sort for consistency
+        if ($sortBy !== 'created_at') {
+            $query->orderBy('created_at', 'desc');
+        }
+    }
+
+    /**
+     * Get applied filters for response
+     */
+    private function getAppliedFilters(Request $request)
+    {
+        return array_filter([
+            'location_id' => $request->location_id,
+            'gender' => $request->gender,
+            'min_experience' => $request->min_experience,
+            'max_experience' => $request->max_experience,
+            'min_rate' => $request->min_rate,
+            'max_rate' => $request->max_rate,
+            'commitment_type' => $request->commitment_type,
+            'booking_type' => $request->booking_type,
+            'search' => $request->search,
+            'languages' => $request->languages,
+            'available_days' => $request->available_days,
+            'contactable_only' => $request->get('contactable_only') === 'true',
+            'include_unverified' => $request->get('include_unverified') === 'true'
+        ]);
+    }
+
 }
