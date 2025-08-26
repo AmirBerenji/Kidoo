@@ -31,6 +31,7 @@ class NannyResource extends JsonResource
             'is_verified' => $this->is_verified,
             'video_intro_url' => $this->video_intro_url,
             'resume_url' => $this->resume_url,
+            'age_groups'=>$this->age_groups,
             'languages' => LanguageResource::collection($this->whenLoaded('languages')),
             'services' => ServiceResource::collection($this->whenLoaded('services')),
             'degrees' => DegreeResource::collection($this->whenLoaded('degrees')),
