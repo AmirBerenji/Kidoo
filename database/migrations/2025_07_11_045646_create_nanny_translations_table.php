@@ -16,10 +16,9 @@ return new class extends Migration
             $table->foreignId('nanny_id')->constrained()->onDelete('cascade');
             $table->string('language_code', 5); // 'en', 'hy', 'ru'
             $table->string('full_name');
-            $table->text('specialization')->nullable();
-            $table->text('services_provided')->nullable();
-            $table->text('special_cases')->nullable();
-            $table->text('age_groups')->nullable();
+            $table->string('specialization')->nullable();
+            $table->string('services_provided')->nullable();
+            $table->string('special_cases')->nullable();
             $table->string('fixed_package_title')->nullable();
             $table->timestamps();
         });

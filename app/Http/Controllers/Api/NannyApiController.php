@@ -93,12 +93,13 @@ class NannyApiController extends Controller
             'is_verified' => 'required|boolean',
             'video_intro_url' => 'nullable|url',
             'resume_url' => 'nullable|url',
+            'age_groups' => 'nullable|string',
 
             'nannytranslation' => 'nullable|array',
             'nannytranslation.*.language_code' => 'required|exists:languages,id',
             'nannytranslation.*.full_name' => 'required|string',
             'nannytranslation.*.specialization' => 'nullable|string',
-            'nannytranslation.*.age_groups' => 'nullable|string',
+
 
             'photos' => 'nullable|array',
             'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -116,7 +117,7 @@ class NannyApiController extends Controller
                     'gender', 'location_id', 'years_experience', 'working_hours',
                     'days_available', 'hourly_rate', 'fixed_package_description',
                     'contact_enabled', 'booking_type', 'availability_calendar',
-                    'is_verified', 'video_intro_url', 'resume_url',
+                    'is_verified', 'video_intro_url', 'resume_url','age_groups',
                 ]);
 
                 // Normalize commitment_type to consistent format

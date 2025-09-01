@@ -22,6 +22,7 @@ class Nanny extends Model
         'is_verified',
         'video_intro_url',
         'resume_url',
+        'age_groups'
     ];
 
     protected $casts = [

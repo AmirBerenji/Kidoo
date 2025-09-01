@@ -30,6 +30,7 @@ return new class extends Migration
             $table->boolean('is_verified')->default(false);
             $table->string('video_intro_url')->nullable();
             $table->string('resume_url')->nullable();
+            $table->string('age_groups')->nullable();
             $table->timestamps();
         });
     }
