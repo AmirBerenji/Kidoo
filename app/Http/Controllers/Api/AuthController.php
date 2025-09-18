@@ -118,4 +118,26 @@ class AuthController extends Controller
 
         return apiResponse(true, "Profile updated successfully", $user, 200);
     }
+
+    public function updatePhoto(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        // Delete old photo if exists
+        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+            Storage::disk('public')->delete($user->photo);
+        }
+
+        // Store new photo
+        $path = $request->file('photo')->store('photos', 'public');
+        $user->photo = $path;
+        $user->save();
+
+        apiResponse(true, "Photo updated successfully", $user, 200);
+        return apiResponse(true, "Photo updated successfully", $user, 200);
+    }
 }
