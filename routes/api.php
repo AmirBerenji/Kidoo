@@ -17,7 +17,7 @@ Route::prefix('user')->group(function () {
         Route::get('profile', [AuthController::class, 'user']); // changed from 'user/user' to 'user/profile'
         Route::post('logout', [AuthController::class, 'logout']);
         Route::put('update', [AuthController::class, 'update']);
-        Route::put('/user/photo',[AuthController::class, 'updatePhoto']);
+        Route::put('photo',[AuthController::class, 'updatePhoto']);
     });
 });
 
