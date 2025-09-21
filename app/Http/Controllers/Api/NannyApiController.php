@@ -9,6 +9,7 @@ use App\Models\NannyTranslation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -18,6 +19,7 @@ class NannyApiController extends Controller
     public function index(Request $request)
     {
         try {
+
             // Start with base query
             $query = Nanny::query();
 
@@ -76,8 +78,10 @@ class NannyApiController extends Controller
         }
     }
 
+
     public function store(Request $request)
     {
+        Log::info('Nanny Store Request:', ['user_id' => auth()->id()]);
         $validator = Validator::make($request->all(), [
             'gender' => 'required|in:Male,Female,Other',
             'location_id' => 'nullable|exists:locations,id',
@@ -101,15 +105,16 @@ class NannyApiController extends Controller
             'nannytranslation.*.full_name' => 'required|string',
             'nannytranslation.*.specialization' => 'nullable|string',
 
-
             'photos' => 'nullable|array',
-            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'profile_photo_index' => 'nullable|integer|min:0',
+            //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            //'profile_photo_index' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+
+        Log::info("Validate Pass");
 
         try {
             $nanny = DB::transaction(function () use ($request) {
@@ -118,7 +123,7 @@ class NannyApiController extends Controller
                     'gender', 'location_id', 'years_experience', 'working_hours',
                     'days_available', 'hourly_rate', 'fixed_package_description',
                     'contact_enabled', 'booking_type', 'availability_calendar',
-                    'is_verified', 'video_intro_url', 'resume_url','age_groups',
+                    'is_verified', 'video_intro_url', 'resume_url', 'age_groups',
                 ]);
 
                 // Normalize commitment_type to consistent format
@@ -126,8 +131,16 @@ class NannyApiController extends Controller
                     $normalized['commitment_type'] = ucfirst(strtolower(str_replace('_', '-', $request->commitment_type)));
                 }
 
-                // Add the authenticated user ID
-                $normalized['user_id'] = Auth::id();
+                // Get user_id from request or authenticated user
+                $normalized['user_id'] = $request->user_id ?? auth()->id();
+
+                // Debug log to check user_id
+                Log::info('Creating nanny with user_id: ' . $normalized['user_id']);
+
+                // Ensure user_id is not null
+                if (!$normalized['user_id']) {
+                    throw new \Exception('User ID is required but not provided');
+                }
 
                 // Convert empty URLs to null
                 if (empty($normalized['video_intro_url'])) {
@@ -177,7 +190,8 @@ class NannyApiController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error creating nanny: ' . $e->getMessage(), [
-                'user_id' => Auth::id(),
+                'user_id' => auth()->id(),
+                'request_user_id' => $request->user_id ?? 'not provided',
                 'request_data' => $request->except(['photos']) // Exclude files from logs
             ]);
 
@@ -242,181 +256,6 @@ class NannyApiController extends Controller
     {
         $nanny->delete();
         return response()->noContent();
-    }
-
-
-
-    /**
-     * Upload images for nanny profile
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function uploadImages(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'nanny_id' => 'required|exists:nannies,id',
-            'photos' => 'required|array|min:1|max:10',
-            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'profile_photo_index' => 'nullable|integer|min:0',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        try {
-            $nanny = Nanny::findOrFail($request->nanny_id);
-
-            // Check if the authenticated user owns this nanny profile
-            if ($nanny->user_id !== Auth::id()) {
-                return apiResponse(false, 'Unauthorized access.', null, 403);
-            }
-
-            $uploadedPhotos = DB::transaction(function () use ($request, $nanny) {
-                $profilePhotoIndex = $request->input('profile_photo_index', 0);
-                $uploadedPhotos = [];
-
-                // Get current photo count for order indexing
-                $currentPhotoCount = $nanny->photos()->count();
-
-                foreach ($request->file('photos') as $index => $photo) {
-                    $filename = time() . '_' . uniqid() . '_' . $index . '.' . $photo->getClientOriginalExtension();
-                    $path = $photo->storeAs('nanny_photos', $filename, 'public');
-
-                    $photoRecord = $nanny->photos()->create([
-                        'photo_url' => Storage::url($path),
-                        'is_profile_photo' => $index == $profilePhotoIndex,
-                        'order' => $currentPhotoCount + $index,
-                    ]);
-
-                    $uploadedPhotos[] = $photoRecord;
-                }
-
-                // If setting a new profile photo, unset previous profile photos
-                if ($request->has('profile_photo_index')) {
-                    $nanny->photos()
-                        ->whereNotIn('id', collect($uploadedPhotos)->pluck('id'))
-                        ->update(['is_profile_photo' => false]);
-                }
-
-                return $uploadedPhotos;
-            });
-
-            return apiResponse(true, "Images uploaded successfully", [
-                'uploaded_photos' => $uploadedPhotos,
-                'total_photos' => $nanny->photos()->count()
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Error uploading nanny images: ' . $e->getMessage(), [
-                'user_id' => Auth::id(),
-                'nanny_id' => $request->nanny_id,
-                'photos_count' => $request->hasFile('photos') ? count($request->file('photos')) : 0
-            ]);
-
-            return apiResponse(false, 'Error occurred while uploading images.', null, 500);
-        }
-    }
-
-    /**
-     * Delete a specific nanny photo
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function deleteImage(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'photo_id' => 'required|exists:nanny_photos,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        try {
-            $photo = NannyPhoto::findOrFail($request->photo_id);
-            $nanny = $photo->nanny;
-
-            // Check if the authenticated user owns this nanny profile
-            if ($nanny->user_id !== Auth::id()) {
-                return apiResponse(false, 'Unauthorized access.', null, 403);
-            }
-
-            DB::transaction(function () use ($photo) {
-                // Delete file from storage
-                $photoPath = str_replace('/storage/', '', $photo->photo_url);
-                if (Storage::disk('public')->exists($photoPath)) {
-                    Storage::disk('public')->delete($photoPath);
-                }
-
-                // Delete record
-                $photo->delete();
-            });
-
-            return apiResponse(true, "Image deleted successfully", null, 200);
-
-        } catch (\Exception $e) {
-            Log::error('Error deleting nanny image: ' . $e->getMessage(), [
-                'user_id' => Auth::id(),
-                'photo_id' => $request->photo_id
-            ]);
-
-            return apiResponse(false, 'Error occurred while deleting image.', null, 500);
-        }
-    }
-
-    /**
-     * Update profile photo selection
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function setProfilePhoto(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'nanny_id' => 'required|exists:nannies,id',
-            'photo_id' => 'required|exists:nanny_photos,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        try {
-            $nanny = Nanny::findOrFail($request->nanny_id);
-            $photo = NannyPhoto::findOrFail($request->photo_id);
-
-            // Check if the authenticated user owns this nanny profile
-            if ($nanny->user_id !== Auth::id()) {
-                return apiResponse(false, 'Unauthorized access.', null, 403);
-            }
-
-            // Check if the photo belongs to this nanny
-            if ($photo->nanny_id !== $nanny->id) {
-                return apiResponse(false, 'Photo does not belong to this nanny profile.', null, 400);
-            }
-
-            DB::transaction(function () use ($nanny, $photo) {
-                // Unset all current profile photos
-                $nanny->photos()->update(['is_profile_photo' => false]);
-
-                // Set the new profile photo
-                $photo->update(['is_profile_photo' => true]);
-            });
-
-            return apiResponse(true, "Profile photo updated successfully", null, 200);
-
-        } catch (\Exception $e) {
-            Log::error('Error setting profile photo: ' . $e->getMessage(), [
-                'user_id' => Auth::id(),
-                'nanny_id' => $request->nanny_id,
-                'photo_id' => $request->photo_id
-            ]);
-
-            return apiResponse(false, 'Error occurred while setting profile photo.', null, 500);
-        }
     }
 
 
