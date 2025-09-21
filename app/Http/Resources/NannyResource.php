@@ -18,6 +18,7 @@ class NannyResource extends JsonResource
 
             'id' => $this->id,
             'gender' => $this->gender,
+            'user' => new UserResource($this->whenLoaded('user')),
             'location' => new LocationResource($this->whenLoaded('location')),
             'years_experience' => $this->years_experience,
             'working_hours' => $this->working_hours,
