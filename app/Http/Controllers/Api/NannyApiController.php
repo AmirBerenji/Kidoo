@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\NannyResource;
 use App\Models\Nanny;
 use App\Models\NannyTranslation;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,7 @@ class NannyApiController extends Controller
                 'translations' => function($q) {
                     $q->select('id', 'nanny_id', 'language_code', 'full_name', 'specialization', 'age_groups');
                 },
+                'user',
                 'photos' => function($q) {
                     $q->select('id', 'nanny_id', 'photo_url', 'is_profile_photo', 'order')
                         ->orderBy('order');
@@ -44,10 +46,10 @@ class NannyApiController extends Controller
             ]);
 
             // Core filters
-            $this->applyFilters($query, $request);
+            //$this->applyFilters($query, $request);
 
             // Sorting
-            $this->applySorting($query, $request);
+            //$this->applySorting($query, $request);
 
             // Pagination
             $perPage = min($request->get('per_page', 15), 50);
