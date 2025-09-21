@@ -17,21 +17,20 @@ Route::prefix('user')->group(function () {
         Route::get('profile', [AuthController::class, 'user']); // changed from 'user/user' to 'user/profile'
         Route::post('logout', [AuthController::class, 'logout']);
         Route::put('update', [AuthController::class, 'update']);
-        Route::put('photo',[AuthController::class, 'updatePhoto']);
+        Route::post('photo',[AuthController::class, 'updatePhoto']);
     });
 });
 
-Route::middleware('auth:sanctum')->group(function () {
-    // Nanny CRUD operations
-    Route::apiResource('nannies', NannyApiController::class);
 
-    // Nanny image management routes
-    Route::post('nannies/upload-images', [NannyApiController::class, 'uploadImages']);
-    Route::delete('nannies/delete-image', [NannyApiController::class, 'deleteImage']);
-    Route::put('nannies/set-profile-photo', [NannyApiController::class, 'setProfilePhoto']);
+Route::prefix('nannies')->group(function () {
+
+    Route::get('', [NannyApiController::class, 'index']);
+    Route::middleware('auth:sanctum')->group(function () {
+       Route::post('', [NannyApiController::class, 'store']);
+    });
 });
 
-// Public routes (no authentication required)
+
 Route::apiResource('locations', LocationApicontroller::class);
 Route::apiResource('languages', LanguageApiController::class);
 Route::apiResource('services', ServiceController::class);
