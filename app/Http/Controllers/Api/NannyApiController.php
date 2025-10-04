@@ -261,6 +261,35 @@ class NannyApiController extends Controller
     }
 
 
+
+    public function showById($nanyId)
+    {
+        try {
+            $nanny = Nanny::with([
+                'user',
+                'location',
+                'translations',
+                'languages',
+                'photos',
+            ])->where('nannies.id', $nanyId)->first();
+
+            if (!$nanny) {
+                return apiResponse(false, 'No nanny found for this user.', null, 404);
+            }
+
+            return apiResponse(true, '', new NannyResource($nanny), 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching nanny by userId: ' . $e->getMessage(), [
+                'user_id' => $nanyId,
+            ]);
+
+            return apiResponse(false, 'Error occurred while fetching nanny.', null, 500);
+        }
+    }
+
+
+
     /**
      * Apply filters to the query
      */

@@ -26,7 +26,9 @@ Route::prefix('nannies')->group(function () {
 
     Route::get('', [NannyApiController::class, 'index']);
     Route::middleware('auth:sanctum')->group(function () {
-       Route::post('', [NannyApiController::class, 'store']);
+        Route::post('', [NannyApiController::class, 'store']);
+        Route::get('{id}', [NannyApiController::class, 'showById']);
+        Route::put('{id}', [NannyApiController::class, 'update']); // for updating nanny
     });
 });
 
