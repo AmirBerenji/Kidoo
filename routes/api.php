@@ -29,6 +29,7 @@ Route::prefix('nannies')->group(function () {
         Route::post('', [NannyApiController::class, 'store']);
         Route::get('{id}', [NannyApiController::class, 'showById']);
         Route::put('{id}', [NannyApiController::class, 'update']); // for updating nanny
+        Route::get('/user',[NannyApiController::class,'showByUserId']);
     });
 });
 

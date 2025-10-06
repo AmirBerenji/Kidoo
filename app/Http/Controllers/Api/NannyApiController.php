@@ -290,6 +290,37 @@ class NannyApiController extends Controller
 
 
 
+    public function showByUserId()
+    {
+        try {
+            $userId = Auth::id();
+
+
+            $nanny = Nanny::with([
+                'user',
+                'location',
+                'translations',
+                'languages',
+                'photos',
+            ])->where('user_id', $userId)->first();
+
+            if (!$nanny) {
+                return apiResponse(false, 'No nanny found for this user.1232132', null, 404);
+            }
+
+            return apiResponse(true, '', new NannyResource($nanny), 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching nanny by authenticated user: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+            ]);
+
+            return apiResponse(false, 'Error occurred while fetching nanny.', null, 500);
+        }
+    }
+
+
+
     /**
      * Apply filters to the query
      */
