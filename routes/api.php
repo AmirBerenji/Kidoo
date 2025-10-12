@@ -25,11 +25,17 @@ Route::prefix('user')->group(function () {
 Route::prefix('nannies')->group(function () {
 
     Route::get('', [NannyApiController::class, 'index']);
+
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('', [NannyApiController::class, 'store']);
         Route::get('{id}', [NannyApiController::class, 'showById']);
         Route::put('{id}', [NannyApiController::class, 'update']); // for updating nanny
-        Route::get('/user',[NannyApiController::class,'showByUserId']);
+
+        Route::get('/user/info',[NannyApiController::class,'showByUserId']);
+
+
+
     });
 });
 
