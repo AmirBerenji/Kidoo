@@ -293,8 +293,8 @@ class NannyApiController extends Controller
     public function showByUserId()
     {
         try {
-            $userId = Auth::id();
 
+            $userId = Auth::id();
 
             $nanny = Nanny::with([
                 'user',
