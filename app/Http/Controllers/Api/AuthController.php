@@ -121,22 +121,16 @@ public function register(Request $request)
         return apiResponse(true, "Profile updated successfully", $user, 200);
     }
 
+
     public function updatePhoto(Request $request)
     {
         try {
-
-            $rawInput = $request->getContent();
-
             $user = Auth::user();
             if (!$user) {
                 return apiResponse(false, "User not authenticated", null, 401);
             }
 
-            $allFileFields = [];
-            foreach ($request->files->all() as $key => $file) {
-                $allFileFields[$key] = $file;
-            }
-
+            // First, find the file
             $possibleFileFields = ['photo', 'image', 'file', 'avatar', 'picture'];
             $foundFile = null;
             $foundFieldName = null;
@@ -149,6 +143,7 @@ public function register(Request $request)
                 }
             }
 
+            // If no file found in common fields, check all files
             if (!$foundFile) {
                 $allFiles = $request->files->all();
                 if (!empty($allFiles)) {
@@ -158,33 +153,13 @@ public function register(Request $request)
                 }
             }
 
-            // Enhanced validation with better error messages
-            try {
-                // Try validation with the found field name first
-                if ($foundFile && $foundFieldName) {
-                    $validationRules = [$foundFieldName => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'];
-
-                } else {
-                    $validationRules = ['photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'];
-
-                }
-
-                $request->validate($validationRules);
-                Log::info('Validation passed successfully');
-            } catch (\Illuminate\Validation\ValidationException $e) {
-
-                return apiResponse(false, "Validation failed", $e->errors(), 422);
-            }
-
-            // Get the photo file (try multiple field names)
-            $photoFile = $foundFile ?? $request->file('photo') ?? $request->file('image');
-
-            if (!$photoFile) {
-
+            // Check if file exists before validation
+            if (!$foundFile) {
                 return apiResponse(false, "No photo file provided", null, 400);
             }
-            // Enhanced file validation
-            if (!$photoFile->isValid()) {
+
+            // Validate the file upload itself first
+            if (!$foundFile->isValid()) {
                 $errorMessages = [
                     UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize directive',
                     UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE directive',
@@ -195,66 +170,76 @@ public function register(Request $request)
                     UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
                 ];
 
-                $errorCode = $photoFile->getError();
+                $errorCode = $foundFile->getError();
                 $errorMessage = $errorMessages[$errorCode] ?? 'Unknown upload error';
-
                 return apiResponse(false, "Invalid file upload: {$errorMessage}", null, 400);
             }
 
-            // Additional file content validation
+            // Validate file properties
+            $extension = strtolower($foundFile->getClientOriginalExtension());
+            $allowedExtensions = ['jpeg', 'jpg', 'png', 'gif'];
+
+            if (!in_array($extension, $allowedExtensions)) {
+                return apiResponse(false, "Invalid file type. Allowed: jpeg, jpg, png, gif", null, 400);
+            }
+
+            if ($foundFile->getSize() > 2048 * 1024) { // 2048 KB = 2 MB
+                return apiResponse(false, "File size exceeds 2MB limit", null, 400);
+            }
+
+            // Validate MIME type
+            $mimeType = $foundFile->getMimeType();
+            $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+            if (!in_array($mimeType, $allowedMimes)) {
+                return apiResponse(false, "Invalid MIME type. File must be an image.", null, 400);
+            }
+
+            // Validate actual image content
             try {
-                $imageInfo = getimagesize($photoFile->getRealPath());
+                $imageInfo = @getimagesize($foundFile->getRealPath());
                 if ($imageInfo === false) {
-                    Log::error('File is not a valid image');
                     return apiResponse(false, "File is not a valid image", null, 400);
                 }
 
+                // Additional check: verify image dimensions are reasonable
+                if ($imageInfo[0] < 1 || $imageInfo[1] < 1) {
+                    return apiResponse(false, "Invalid image dimensions", null, 400);
+                }
             } catch (\Exception $e) {
-
-                return apiResponse(false, "Invalid image file", null, 400);
+                return apiResponse(false, "Invalid image file: " . $e->getMessage(), null, 400);
             }
 
             // Delete old photo if exists
             if ($user->photo) {
-
                 try {
                     if (Storage::disk('public')->exists($user->photo)) {
-                        $deleted = Storage::disk('public')->delete($user->photo);
-
-                    } else {
-                        Log::warning('Old photo file does not exist:', ['path' => $user->photo]);
+                        Storage::disk('public')->delete($user->photo);
                     }
                 } catch (\Exception $e) {
-
-                    // Continue with upload even if old photo deletion fails
+                    Log::warning('Failed to delete old photo: ' . $e->getMessage());
                 }
-            } else {
-                Log::info('No existing photo to delete');
             }
 
-            // Store new photo with enhanced error handling
+            // Store new photo
             try {
-                Log::info('Attempting to store new photo');
-
                 if (!Storage::disk('public')->exists('photos')) {
                     Storage::disk('public')->makeDirectory('photos');
-                    Log::info('Created photos directory');
                 }
 
-                $path = $photoFile->store('photos', 'public');
+                $path = $foundFile->store('photos', 'public');
 
                 if (!$path) {
-                    Log::error('Failed to store photo - store() returned false');
                     return apiResponse(false, "Failed to store photo", null, 500);
                 }
 
-                // Verify the file was actually stored
+                // Verify storage
                 if (!Storage::disk('public')->exists($path)) {
-                    Log::error('Photo was not found after storage:', ['path' => $path]);
                     return apiResponse(false, "Photo storage verification failed", null, 500);
                 }
 
             } catch (\Exception $e) {
+                Log::error('Photo storage error: ' . $e->getMessage());
                 return apiResponse(false, "Failed to store photo", null, 500);
             }
 
@@ -265,43 +250,40 @@ public function register(Request $request)
                 $saved = $user->save();
 
                 if (!$saved) {
-                    Log::error('Failed to save user record');
-                    // Try to cleanup the uploaded file since user update failed
+                    // Cleanup uploaded file
                     try {
                         Storage::disk('public')->delete($path);
-                        Log::info('Cleaned up uploaded file after user save failure');
                     } catch (\Exception $cleanupException) {
-                        Log::error('Failed to cleanup uploaded file:', [
-                            'error' => $cleanupException->getMessage()
-                        ]);
+                        Log::error('Cleanup failed: ' . $cleanupException->getMessage());
                     }
                     return apiResponse(false, "Failed to update user record", null, 500);
                 }
 
             } catch (\Exception $e) {
-
+                // Cleanup uploaded file
                 try {
                     Storage::disk('public')->delete($path);
-                    Log::info('Cleaned up uploaded file after user update exception');
                 } catch (\Exception $cleanupException) {
-                    Log::error('Failed to cleanup uploaded file:', [
-                        'error' => $cleanupException->getMessage()
-                    ]);
+                    Log::error('Cleanup failed: ' . $cleanupException->getMessage());
                 }
 
+                Log::error('User update error: ' . $e->getMessage());
                 return apiResponse(false, "Failed to update user record", null, 500);
             }
 
-            // Return user with photo URL for frontend
+            // Return user with photo URL
             $userData = $user->toArray();
             $userData['photo_url'] = $user->photo ? Storage::disk('public')->url($user->photo) : null;
 
             return apiResponse(true, "Photo updated successfully", $userData, 200);
 
         } catch (\Exception $e) {
-
+            Log::error('Unexpected error in updatePhoto: ' . $e->getMessage());
             return apiResponse(false, "An unexpected error occurred", null, 500);
         }
     }
+
+
+
 
 }
