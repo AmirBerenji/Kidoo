@@ -211,48 +211,153 @@ class NannyApiController extends Controller
         );
     }
 
-    public function update(Request $request, Nanny $nanny)
+
+    public function update(Request $request)
     {
-        $nanny->update($request->only([
-            'gender', 'location_id', 'years_experience', 'working_hours',
-            'days_available', 'commitment_type', 'hourly_rate', 'fixed_package_description',
-            'contact_enabled', 'booking_type', 'availability_calendar',
-            'is_verified', 'video_intro_url', 'resume_url',
-        ]));
+        Log::info('Nanny Update Request:', ['user_id' => auth()->id(), 'nanny_id' => $request->id]);
 
-        if ($request->has('languages')) {
-            $nanny->languages()->sync($request->languages);
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|integer|exists:nannies,id',
+            'gender' => 'required|in:Male,Female,Other',
+            'location_id' => 'nullable|exists:locations,id',
+            'years_experience' => 'required|integer|min:0',
+            'working_hours' => 'nullable|string',
+            'days_available' => 'nullable|string',
+            'commitment_type' => 'nullable|in:Short-term,Long-term,short_term,long_term,temporary',
+            'hourly_rate' => 'nullable|numeric|min:0',
+            'fixed_package_description' => 'nullable|string',
+            'contact_enabled' => 'required|boolean',
+            'booking_type' => 'nullable|in:direct,Interview,on_request',
+            'availability_calendar' => 'nullable|array',
+            'availability_calendar.*' => 'date',
+            'is_verified' => 'required|boolean',
+            'video_intro_url' => 'nullable|url',
+            'resume_url' => 'nullable|url',
+            'age_groups' => 'nullable|string',
+
+            'nannytranslation' => 'nullable|array',
+            'nannytranslation.*.language_code' => 'required|exists:languages,id',
+            'nannytranslation.*.full_name' => 'required|string',
+            'nannytranslation.*.specialization' => 'nullable|string',
+
+            'photos' => 'nullable|array',
+            //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            //'profile_photo_index' => 'nullable|integer|min:0',
+            'deleted_photo_ids' => 'nullable|array',
+            'deleted_photo_ids.*' => 'integer|exists:nanny_photos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if ($request->has('services')) {
-            $nanny->services()->sync($request->services);
-        }
+        Log::info("Validate Pass");
 
-        if ($request->has('degrees')) {
-            $nanny->degrees()->sync($request->degrees);
-        }
+        try {
+            $nanny = Nanny::findOrFail($request->id);
 
-        if ($request->has('translations')) {
-            $nanny->translations()->delete();
-            foreach ($request->translations as $tr) {
-                $nanny->translations()->create($tr);
+            // Check authorization (optional - if you want to ensure only the owner can update)
+            if ($nanny->user_id !== auth()->id()) {
+                return apiResponse(false, 'Unauthorized action.', null, 403);
             }
-        }
 
-        if ($request->has('photos')) {
-            $nanny->photos()->delete();
-            foreach ($request->photos as $photo) {
-                $nanny->photos()->create($photo);
-            }
-        }
+            $nanny = DB::transaction(function () use ($request, $nanny) {
+                // Normalize values
+                $normalized = $request->only([
+                    'gender', 'location_id', 'years_experience', 'working_hours',
+                    'days_available', 'hourly_rate', 'fixed_package_description',
+                    'contact_enabled', 'booking_type', 'availability_calendar',
+                    'is_verified', 'video_intro_url', 'resume_url', 'age_groups',
+                ]);
 
-        return new NannyResource(
-            $nanny->load([
-                'location', 'languages', 'services.translations',
-                'degrees.translations', 'translations', 'photos'
-            ])
-        );
+                // Normalize commitment_type to consistent format
+                if ($request->has('commitment_type')) {
+                    $normalized['commitment_type'] = ucfirst(strtolower(str_replace('_', '-', $request->commitment_type)));
+                }
+
+                // Convert empty URLs to null
+                if (empty($normalized['video_intro_url'])) {
+                    $normalized['video_intro_url'] = null;
+                }
+                if (empty($normalized['resume_url'])) {
+                    $normalized['resume_url'] = null;
+                }
+
+                // Update nanny record
+                $nanny->update($normalized);
+
+                // Handle translations and languages
+                if ($request->has('nannytranslation')) {
+                    // Delete existing translations
+                    $nanny->translations()->delete();
+
+                    // Detach all languages
+                    $nanny->languages()->detach();
+
+                    // Create new translations
+                    $nanny->translations()->createMany($request->nannytranslation);
+
+                    // Attach new languages (using language IDs)
+                    $languageIds = collect($request->nannytranslation)->pluck('language_code')->unique();
+                    $nanny->languages()->attach($languageIds);
+                }
+
+                // Handle deleted photos
+                if ($request->has('deleted_photo_ids')) {
+                    foreach ($request->deleted_photo_ids as $photoId) {
+                        $photo = $nanny->photos()->find($photoId);
+                        if ($photo) {
+                            // Delete file from storage
+                            $photoPath = str_replace('/storage/', '', $photo->photo_url);
+                            Storage::disk('public')->delete($photoPath);
+
+                            // Delete database record
+                            $photo->delete();
+                        }
+                    }
+                }
+
+                // Handle new photo uploads
+                if ($request->hasFile('photos')) {
+                    $profilePhotoIndex = $request->input('profile_photo_index', 0);
+                    $existingPhotosCount = $nanny->photos()->count();
+
+                    foreach ($request->file('photos') as $index => $photo) {
+                        $filename = time() . '_' . $index . '.' . $photo->getClientOriginalExtension();
+                        $path = $photo->storeAs('nanny_photos', $filename, 'public');
+
+                        $nanny->photos()->create([
+                            'photo_url' => Storage::url($path),
+                            'is_profile_photo' => $index == $profilePhotoIndex,
+                            'order' => $existingPhotosCount + $index,
+                        ]);
+                    }
+                }
+
+                return $nanny->load([
+                    'location',
+                    'translations',
+                    'languages',
+                    'photos',
+                ]);
+            });
+
+            return apiResponse(true, "Your information updated successfully", new NannyResource($nanny), 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return apiResponse(false, 'Nanny not found.', null, 404);
+        } catch (\Exception $e) {
+            Log::error('Error updating nanny: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'nanny_id' => $request->id,
+                'request_data' => $request->except(['photos']) // Exclude files from logs
+            ]);
+
+            return apiResponse(false, 'Error occurred while updating nanny.', null, 500);
+        }
     }
+
+
 
     public function destroy(Nanny $nanny)
     {
