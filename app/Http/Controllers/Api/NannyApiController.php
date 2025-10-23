@@ -211,7 +211,6 @@ class NannyApiController extends Controller
         );
     }
 
-
     public function update(Request $request)
     {
         Log::info('Nanny Update Request:', ['user_id' => auth()->id(), 'nanny_id' => $request->id]);
@@ -236,27 +235,28 @@ class NannyApiController extends Controller
             'age_groups' => 'nullable|string',
 
             'nannytranslation' => 'nullable|array',
-            'nannytranslation.*.language_code' => 'required|exists:languages,id',
+            'nannytranslation.*.language_code' => 'required|integer|exists:languages,id',
             'nannytranslation.*.full_name' => 'required|string',
             'nannytranslation.*.specialization' => 'nullable|string',
 
             'photos' => 'nullable|array',
-            //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            //'profile_photo_index' => 'nullable|integer|min:0',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'profile_photo_index' => 'nullable|integer|min:0',
             'deleted_photo_ids' => 'nullable|array',
             'deleted_photo_ids.*' => 'integer|exists:nanny_photos,id',
         ]);
 
         if ($validator->fails()) {
+            Log::error('Validation failed:', $validator->errors()->toArray());
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        Log::info("Validate Pass");
+        Log::info("Validation Passed");
 
         try {
             $nanny = Nanny::findOrFail($request->id);
 
-            // Check authorization (optional - if you want to ensure only the owner can update)
+            // Check authorization
             if ($nanny->user_id !== auth()->id()) {
                 return apiResponse(false, 'Unauthorized action.', null, 403);
             }
@@ -267,27 +267,29 @@ class NannyApiController extends Controller
                     'gender', 'location_id', 'years_experience', 'working_hours',
                     'days_available', 'hourly_rate', 'fixed_package_description',
                     'contact_enabled', 'booking_type', 'availability_calendar',
-                    'is_verified', 'video_intro_url', 'resume_url', 'age_groups',
+                    'is_verified', 'age_groups',
                 ]);
 
                 // Normalize commitment_type to consistent format
-                if ($request->has('commitment_type')) {
+                if ($request->filled('commitment_type')) {
                     $normalized['commitment_type'] = ucfirst(strtolower(str_replace('_', '-', $request->commitment_type)));
                 }
 
                 // Convert empty URLs to null
-                if (empty($normalized['video_intro_url'])) {
-                    $normalized['video_intro_url'] = null;
-                }
-                if (empty($normalized['resume_url'])) {
-                    $normalized['resume_url'] = null;
-                }
+                $normalized['video_intro_url'] = $request->filled('video_intro_url') ? $request->video_intro_url : null;
+                $normalized['resume_url'] = $request->filled('resume_url') ? $request->resume_url : null;
+
+                // Log what we're about to update
+                Log::info('Updating nanny with data:', $normalized);
 
                 // Update nanny record
                 $nanny->update($normalized);
 
+                // Reload to ensure we have fresh data
+                $nanny->refresh();
+
                 // Handle translations and languages
-                if ($request->has('nannytranslation')) {
+                if ($request->filled('nannytranslation')) {
                     // Delete existing translations
                     $nanny->translations()->delete();
 
@@ -295,15 +297,26 @@ class NannyApiController extends Controller
                     $nanny->languages()->detach();
 
                     // Create new translations
-                    $nanny->translations()->createMany($request->nannytranslation);
+                    foreach ($request->nannytranslation as $translation) {
+                        $nanny->translations()->create([
+                            'language_code' => (int)$translation['language_code'],
+                            'full_name' => $translation['full_name'],
+                            'specialization' => $translation['specialization'] ?? null,
+                        ]);
+                    }
 
                     // Attach new languages (using language IDs)
-                    $languageIds = collect($request->nannytranslation)->pluck('language_code')->unique();
+                    $languageIds = collect($request->nannytranslation)
+                        ->pluck('language_code')
+                        ->map(fn($id) => (int)$id)
+                        ->unique()
+                        ->toArray();
+
                     $nanny->languages()->attach($languageIds);
                 }
 
                 // Handle deleted photos
-                if ($request->has('deleted_photo_ids')) {
+                if ($request->filled('deleted_photo_ids')) {
                     foreach ($request->deleted_photo_ids as $photoId) {
                         $photo = $nanny->photos()->find($photoId);
                         if ($photo) {
@@ -322,6 +335,11 @@ class NannyApiController extends Controller
                     $profilePhotoIndex = $request->input('profile_photo_index', 0);
                     $existingPhotosCount = $nanny->photos()->count();
 
+                    // Reset all existing photos to not be profile photo
+                    if ($profilePhotoIndex < $existingPhotosCount) {
+                        $nanny->photos()->update(['is_profile_photo' => false]);
+                    }
+
                     foreach ($request->file('photos') as $index => $photo) {
                         $filename = time() . '_' . $index . '.' . $photo->getClientOriginalExtension();
                         $path = $photo->storeAs('nanny_photos', $filename, 'public');
@@ -334,7 +352,8 @@ class NannyApiController extends Controller
                     }
                 }
 
-                return $nanny->load([
+                // Reload with all relationships
+                return $nanny->fresh([
                     'location',
                     'translations',
                     'languages',
@@ -342,22 +361,24 @@ class NannyApiController extends Controller
                 ]);
             });
 
+            Log::info('Nanny updated successfully:', ['nanny_id' => $nanny->id]);
+
             return apiResponse(true, "Your information updated successfully", new NannyResource($nanny), 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Nanny not found:', ['nanny_id' => $request->id]);
             return apiResponse(false, 'Nanny not found.', null, 404);
         } catch (\Exception $e) {
             Log::error('Error updating nanny: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'nanny_id' => $request->id,
-                'request_data' => $request->except(['photos']) // Exclude files from logs
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['photos'])
             ]);
 
-            return apiResponse(false, 'Error occurred while updating nanny.', null, 500);
+            return apiResponse(false, 'Error occurred while updating nanny: ' . $e->getMessage(), null, 500);
         }
     }
-
-
 
     public function destroy(Nanny $nanny)
     {
