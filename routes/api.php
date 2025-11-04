@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DegreeController;
 use App\Http\Controllers\Api\LanguageApiController;
 use App\Http\Controllers\Api\LocationApicontroller;
 use App\Http\Controllers\Api\NannyApiController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceController;
 
 Route::prefix('user')->group(function () {
@@ -31,11 +32,16 @@ Route::prefix('nannies')->group(function () {
         Route::post('', [NannyApiController::class, 'store']);
         Route::get('{id}', [NannyApiController::class, 'showById']);
         Route::put('{id}', [NannyApiController::class, 'update']); // for updating nanny
-
         Route::get('/user/info',[NannyApiController::class,'showByUserId']);
 
+        Route::post('/{id}/reviews', [ReviewController::class, 'storeNurseReview']);
+        Route::get('/{id}/reviews', [ReviewController::class, 'getNurseReviews']);
+        Route::get('/{id}/reviews/check', [ReviewController::class, 'checkUserReview'])
+            ->defaults('type', 'nurse');
 
-
+        // Update and Delete Review
+        Route::put('/reviews/{id}', [ReviewController::class, 'updateReview']);
+        Route::delete('/reviews/{id}', [ReviewController::class, 'deleteReview']);
     });
 });
 
