@@ -59,4 +59,21 @@ class Nanny extends Model
     public function photos() {
         return $this->hasMany(NannyPhoto::class);
     }   //
+
+    public function reviews()
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    // Get average rating
+    public function averageRating()
+    {
+        return $this->reviews()->avg('rating');
+    }
+
+    // Get total reviews count
+    public function totalReviews()
+    {
+        return $this->reviews()->count();
+    }
 }
