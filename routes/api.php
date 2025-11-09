@@ -34,14 +34,18 @@ Route::prefix('nannies')->group(function () {
         Route::put('{id}', [NannyApiController::class, 'update']); // for updating nanny
         Route::get('/user/info',[NannyApiController::class,'showByUserId']);
 
-        Route::post('/{id}/reviews', [ReviewController::class, 'storeNurseReview']);
-        Route::get('/{id}/reviews', [ReviewController::class, 'getNurseReviews']);
-        Route::get('/{id}/reviews/check', [ReviewController::class, 'checkUserReview'])
-            ->defaults('type', 'nurse');
+    });
+});
 
-        // Update and Delete Review
-        Route::put('/reviews/{id}', [ReviewController::class, 'updateReview']);
-        Route::delete('/reviews/{id}', [ReviewController::class, 'deleteReview']);
+Route::prefix('reviews')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
+        // Review CRUD endpoints
+        Route::post('/', [ReviewController::class, 'store']);           // Create review
+        Route::get('/', [ReviewController::class, 'index']);            // Get reviews list
+        Route::put('/{id}', [ReviewController::class, 'update']);      // Update review
+        Route::delete('/{id}', [ReviewController::class, 'destroy']);  // Delete review
+        Route::get('/check', [ReviewController::class, 'checkUserReview']); // Check if user reviewed
+
     });
 });
 
