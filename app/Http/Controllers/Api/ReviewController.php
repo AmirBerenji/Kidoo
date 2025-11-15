@@ -21,6 +21,7 @@ class ReviewController extends Controller
      */
     public function store(StoreReviewRequest $request): JsonResponse
     {
+
         $validated = $request->validated();
         $type = $request->input('type'); // 'nurse' or 'doctor'
         $reviewableId = $request->input('reviewable_id');
@@ -103,6 +104,7 @@ class ReviewController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+
         $type = $request->input('type'); // 'nurse' or 'doctor'
         $reviewableId = $request->input('reviewable_id');
 
