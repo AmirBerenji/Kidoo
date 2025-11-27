@@ -21,11 +21,11 @@ return new class extends Migration
             $table->integer('years_experience');
             $table->string('working_hours')->nullable();
             $table->text('days_available')->nullable();
-            $table->enum('commitment_type', ['Short-term', 'Long-term'])->nullable();
+            $table->enum('commitment_type', ['Short-term', 'Long-term','Temporary'])->nullable();
             $table->decimal('hourly_rate', 8, 2)->nullable();
             $table->text('fixed_package_description')->nullable();
             $table->boolean('contact_enabled')->default(true);
-            $table->enum('booking_type', ['Instant', 'Interview'])->nullable();
+            $table->enum('booking_type', ['Direct', 'Interview','On Request'])->nullable();
             $table->json('availability_calendar')->nullable();
             $table->boolean('is_verified')->default(false);
             $table->string('video_intro_url')->nullable();

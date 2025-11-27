@@ -33,6 +33,11 @@ class NannyResource extends JsonResource
             'video_intro_url' => $this->video_intro_url,
             'resume_url' => $this->resume_url,
             'age_groups'=>$this->age_groups,
+
+            // Review statistics
+            'reviews_count' => $this->reviews_count ?? 0,
+            'average_rating' => $this->reviews_avg_rating ? round($this->reviews_avg_rating, 1) : null,
+
             'languages' => LanguageResource::collection($this->whenLoaded('languages')),
             'services' => ServiceResource::collection($this->whenLoaded('services')),
             'degrees' => DegreeResource::collection($this->whenLoaded('degrees')),

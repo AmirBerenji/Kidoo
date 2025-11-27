@@ -37,7 +37,8 @@ class NannyApiController extends Controller
                 },
                 'languages:id,name,code'
             ]);
-
+            $query->withCount('reviews')
+                ->withAvg('reviews', 'rating');
             // Performance optimization - select only needed columns
             $query->select([
                 'id', 'user_id', 'gender', 'location_id', 'years_experience',
