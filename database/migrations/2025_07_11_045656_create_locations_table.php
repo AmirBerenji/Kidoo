@@ -6,41 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
-        // Main doctors table
-        Schema::create('doctors', function (Blueprint $table) {
+        Schema::create('locations', function (Blueprint $table) {
             $table->id();
-            $table->string('email')->unique();
-            $table->string('phone')->nullable();
-            $table->string('specialization')->nullable();
-            $table->integer('experience_years')->nullable();
-            $table->string('license_number')->unique()->nullable();
-            $table->string('image')->nullable();
-            $table->foreignId('location_id')->nullable()->constrained('locations')->onDelete('set null');
-            $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
-            $table->timestamps();
-            $table->softDeletes();
-        });
-
-        // Doctor translations table
-        Schema::create('doctor_translations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('doctor_id')->constrained('doctors')->onDelete('cascade');
-            $table->foreignId('language_id')->constrained('languages')->onDelete('cascade');
-            $table->string('name');
-            $table->text('bio')->nullable();
-            $table->text('education')->nullable();
-            $table->text('address')->nullable();
-            $table->timestamps();
-
-            $table->unique(['doctor_id', 'language_id']);
+            $table->string('city');
+            $table->string('district')->nullable();
+            $table->string('postal_code')->nullable();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('doctor_translations');
-        Schema::dropIfExists('doctors');
+        Schema::dropIfExists('locations');
     }
 };

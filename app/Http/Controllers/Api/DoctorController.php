@@ -61,8 +61,26 @@ class DoctorController extends Controller
      */
     public function store(Request $request)
     {
+        // Get authenticated user ID
+        $userId = auth()->id();
+
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated. Please login first.'
+            ], 401);
+        }
+
+        // Check if user already has a doctor profile
+        $existingDoctor = Doctor::where('user_id', $userId)->first();
+        if ($existingDoctor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have a doctor profile. Please use the update endpoint.'
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
-            'user_id' => 'required|exists:users,id|unique:doctors,user_id',
             'email' => 'required|email|unique:doctors,email',
             'phone' => 'nullable|string',
             'specialization' => 'nullable|string',
@@ -87,6 +105,7 @@ class DoctorController extends Controller
         }
 
         $data = $request->except('translations', 'image');
+        $data['user_id'] = $userId; // Set user_id from authenticated user
 
         // Handle image upload
         if ($request->hasFile('image')) {
@@ -106,6 +125,7 @@ class DoctorController extends Controller
             'data' => $this->formatDoctor($doctor->load('translations.language', 'location', 'user'))
         ], 201);
     }
+
 
     /**
      * Display the specified doctor

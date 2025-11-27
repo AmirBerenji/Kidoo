@@ -21,9 +21,11 @@ class LanguageSeeder extends Seeder
         ]);
         DB::table('locations')->insert([
             ['city' => 'Yerevan', 'postal_code' => '0055'],
-            ['city' => 'Sevan', 'postal_code' => '0055'],
-            ['city' => 'Garni', 'postal_code' => '0055'],
-            ['city' => 'Ashtarak', 'postal_code' => '0055'],
+            ['city' => 'Edjmiacin', 'postal_code' => '0056'],
+            ['city' => 'Gyumri', 'postal_code' => '0057'],
+            ['city' => 'Hrazdan', 'postal_code' => '0058'],
+            ['city' => 'Dilijan', 'postal_code' => '0058'],
+            ['city' => 'Jermuk', 'postal_code' => '0058'],
         ]);
         DB::table('roles')->insert([
             ['name' => 'parent'],
