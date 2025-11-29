@@ -85,6 +85,7 @@ class NannyApiController extends Controller
     public function store(Request $request)
     {
         Log::info('Nanny Store Request:', ['user_id' => auth()->id()]);
+
         $validator = Validator::make($request->all(), [
             'gender' => 'required|in:Male,Female,Other',
             'location_id' => 'nullable|exists:locations,id',
@@ -109,15 +110,17 @@ class NannyApiController extends Controller
             'nannytranslation.*.specialization' => 'nullable|string',
 
             'photos' => 'nullable|array',
-            //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            //'profile_photo_index' => 'nullable|integer|min:0',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp,avif|max:2048', // ✅ Added webp, avif
+            'profile_photo_index' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        Log::info("Validate Pass");
+        // ❌ REMOVED: return $request;
+
+        Log::info("Validation Passed");
 
         try {
             $nanny = DB::transaction(function () use ($request) {
@@ -155,14 +158,29 @@ class NannyApiController extends Controller
 
                 $nanny = Nanny::create($normalized);
 
+                Log::info('Nanny created with ID: ' . $nanny->id); // ✅ Debug log
+
                 // Handle translations and languages
                 if ($request->has('nannytranslation')) {
                     // Create translations
-                    $nanny->translations()->createMany($request->nannytranslation);
+                    foreach ($request->nannytranslation as $translation) {
+                        $nanny->translations()->create([
+                            'language_code' => (int)$translation['language_code'],
+                            'full_name' => $translation['full_name'],
+                            'specialization' => $translation['specialization'] ?? null,
+                        ]);
+                    }
 
                     // Attach languages (using language IDs)
-                    $languageIds = collect($request->nannytranslation)->pluck('language_code')->unique();
+                    $languageIds = collect($request->nannytranslation)
+                        ->pluck('language_code')
+                        ->map(fn($id) => (int)$id)
+                        ->unique()
+                        ->toArray();
+
                     $nanny->languages()->attach($languageIds);
+
+                    Log::info('Translations and languages attached'); // ✅ Debug log
                 }
 
                 // Handle photo uploads
@@ -179,6 +197,8 @@ class NannyApiController extends Controller
                             'order' => $index,
                         ]);
                     }
+
+                    Log::info('Photos uploaded: ' . count($request->file('photos'))); // ✅ Debug log
                 }
 
                 return $nanny->load([
@@ -186,8 +206,11 @@ class NannyApiController extends Controller
                     'translations',
                     'languages',
                     'photos',
+                    'user',
                 ]);
             });
+
+            Log::info('Nanny created successfully with ID: ' . $nanny->id); // ✅ Success log
 
             return apiResponse(true, "Your information saved correctly", new NannyResource($nanny), 200);
 
@@ -195,13 +218,13 @@ class NannyApiController extends Controller
             Log::error('Error creating nanny: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'request_user_id' => $request->user_id ?? 'not provided',
-                'request_data' => $request->except(['photos']) // Exclude files from logs
+                'trace' => $e->getTraceAsString(), // ✅ Added stack trace
+                'request_data' => $request->except(['photos'])
             ]);
 
-            return apiResponse(false, 'Error occurred while creating nanny.', null, 500);
+            return apiResponse(false, 'Error occurred while creating nanny: ' . $e->getMessage(), null, 500);
         }
     }
-
     public function show(Nanny $nanny)
     {
         return new NannyResource(
