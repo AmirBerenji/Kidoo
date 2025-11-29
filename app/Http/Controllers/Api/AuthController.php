@@ -125,11 +125,34 @@ public function register(Request $request)
     public function updatePhoto(Request $request)
     {
         try {
+
+
+            // 🔍 CRITICAL DEBUG - Add this RIGHT after try
+            Log::info('=== MIME Type Debug ===');
+
+            $allFiles = $request->allFiles();
+            Log::info('All Files:', $allFiles);
+
+            if ($request->hasFile('photo')) {
+                $file = $request->file('photo');
+                Log::info('Photo file details:', [
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getMimeType(),
+                    'client_mime' => $file->getClientMimeType(),
+                    'extension' => $file->getClientOriginalExtension(),
+                    'size' => $file->getSize(),
+                    'is_valid' => $file->isValid(),
+                    'error' => $file->getError(),
+                    'real_path' => $file->getRealPath(),
+                ]);
+            }
+            Log::info('Request Content-Type', ['content_type' => $request->header('Content-Type')]);
+            Log::info('====================');
+
             $user = Auth::user();
             if (!$user) {
                 return apiResponse(false, "User not authenticated", null, 401);
             }
-
             // First, find the file
             $possibleFileFields = ['photo', 'image', 'file', 'avatar', 'picture'];
             $foundFile = null;
@@ -176,23 +199,26 @@ public function register(Request $request)
             }
 
             // Validate file properties
-            $extension = strtolower($foundFile->getClientOriginalExtension());
-            $allowedExtensions = ['jpeg', 'jpg', 'png', 'gif'];
-
-            if (!in_array($extension, $allowedExtensions)) {
-                return apiResponse(false, "Invalid file type. Allowed: jpeg, jpg, png, gif", null, 400);
-            }
-
-            if ($foundFile->getSize() > 2048 * 1024) { // 2048 KB = 2 MB
-                return apiResponse(false, "File size exceeds 2MB limit", null, 400);
-            }
-
-            // Validate MIME type
             $mimeType = $foundFile->getMimeType();
-            $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            $allowedMimes = [
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+                'image/gif',
+                'image/webp',  // ✅ Added
+                'image/avif'   // ✅ Added
+            ];
 
             if (!in_array($mimeType, $allowedMimes)) {
-                return apiResponse(false, "Invalid MIME type. File must be an image.", null, 400);
+                return apiResponse(false, "Invalid MIME type: {$mimeType}. File must be an image.", null, 400);
+            }
+
+// Update extension validation
+            $extension = strtolower($foundFile->getClientOriginalExtension());
+            $allowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif']; // ✅ Added webp, avif
+
+            if (!in_array($extension, $allowedExtensions)) {
+                return apiResponse(false, "Invalid file type. Allowed: jpeg, jpg, png, gif, webp, avif", null, 400);
             }
 
             // Validate actual image content
