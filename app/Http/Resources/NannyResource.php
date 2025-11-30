@@ -36,7 +36,7 @@ class NannyResource extends JsonResource
 
             // Review statistics
             'reviews_count' => $this->reviews_count ?? 0,
-            'average_rating' => $this->reviews_avg_rating ? round($this->reviews_avg_rating, 1) : null,
+            'average_rating' => $this->reviews_avg_rating ? round($this->reviews_avg_rating, 1) : 0,
 
             'languages' => LanguageResource::collection($this->whenLoaded('languages')),
             'services' => ServiceResource::collection($this->whenLoaded('services')),
