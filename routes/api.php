@@ -51,9 +51,9 @@ Route::prefix('reviews')->group(function () {
 });
 
 Route::prefix('doctors')->group(function () {
-
+    Route::get('/', [DoctorController::class, 'index']);
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/', [DoctorController::class, 'index']);
+
         Route::post('/', [DoctorController::class, 'store']);
         Route::get('/{id}', [DoctorController::class, 'show']);
         Route::put('/{id}', [DoctorController::class, 'update']);

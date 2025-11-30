@@ -29,7 +29,7 @@ class DoctorController extends Controller
             },
             'translations.language',
             'location',
-            'user:id,name,email'
+            'user:id,name,email,photo'
         ])
             ->when($request->status, function($query) use ($request) {
                 $query->where('status', $request->status);
@@ -270,7 +270,7 @@ class DoctorController extends Controller
             'specialization' => $doctor->specialization,
             'experience_years' => $doctor->experience_years,
             'license_number' => $doctor->license_number,
-            'image' => $doctor->image ? asset('storage/' . $doctor->image) : null,
+            'image' => $doctor->user->photo ?? null,
             'status' => $doctor->status,
             'location' => $doctor->location ? [
                 'id' => $doctor->location->id,
