@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Doctor extends Model
@@ -33,7 +35,7 @@ class Doctor extends Model
     }
 
     // Relationship with location
-    public function location()
+    public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
     }
@@ -92,5 +94,22 @@ class Doctor extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    public function reviews(): MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    // Get average rating
+    public function averageRating()
+    {
+        return $this->reviews()->avg('rating');
+    }
+
+    // Get total reviews count
+    public function totalReviews()
+    {
+        return $this->reviews()->count();
     }
 }

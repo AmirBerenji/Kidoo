@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReviewRequest;
 use App\Models\Nanny;
+use App\Models\Doctor;
 use App\Models\Review;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -244,7 +245,7 @@ class ReviewController extends Controller
     {
         return match ($type) {
             'nurse' => Nanny::find($id),
-            // 'doctor' => Doctor::find($id),
+             'doctor' => Doctor::find($id),
             default => null,
         };
     }
