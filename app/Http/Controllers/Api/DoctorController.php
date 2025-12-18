@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Doctor;
 use App\Models\Language;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -244,6 +245,32 @@ class DoctorController extends Controller
             'success' => true,
             'message' => 'Doctor deleted successfully'
         ]);
+    }
+
+    public function showByUserId()
+    {
+        try{
+            $userId = Auth::id();
+            $languageCode = null;
+            $doctor = Doctor::with('translations.language', 'location', 'user')->where('user_id', $userId)->first();
+
+            if (!$doctor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Doctor not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatDoctor($doctor, $languageCode)
+            ]);
+
+        }
+        catch(\Exception $e)
+        {
+            return apiResponse(false,"",null,500);
+        }
     }
 
     /**
