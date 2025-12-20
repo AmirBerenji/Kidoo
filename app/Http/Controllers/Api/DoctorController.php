@@ -265,7 +265,6 @@ class DoctorController extends Controller
                 'success' => true,
                 'data' => $this->formatDoctor($doctor, $languageCode)
             ]);
-
         }
         catch(\Exception $e)
         {
