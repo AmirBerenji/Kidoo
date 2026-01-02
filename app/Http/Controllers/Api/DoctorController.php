@@ -57,6 +57,8 @@ class DoctorController extends Controller
         ]);
     }
 
+
+
     /**
      * Store a newly created doctor
      */
