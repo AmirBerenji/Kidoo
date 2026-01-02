@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChildController;
 use App\Http\Controllers\Api\DegreeController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\LanguageApiController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\LocationApicontroller;
 use App\Http\Controllers\Api\NannyApiController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('user')->group(function () {
     // Public routes
@@ -62,7 +64,9 @@ Route::prefix('doctors')->group(function () {
 
 });
 
-
+Route::prefix('childes')->group(function () {
+    Route::get('/checkregister/{id}', [ChildController::class, 'checkregister']);
+});
 
 
 Route::apiResource('locations', LocationApicontroller::class);
