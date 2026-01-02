@@ -53,12 +53,11 @@ Route::prefix('reviews')->group(function () {
 Route::prefix('doctors')->group(function () {
     Route::get('/', [DoctorController::class, 'index']);
     Route::middleware('auth:sanctum')->group(function () {
-
         Route::post('/', [DoctorController::class, 'store']);
         Route::get('/{id}', [DoctorController::class, 'show']);
         Route::put('/{id}', [DoctorController::class, 'update']);
-        Route::post('/{id}', [DoctorController::class, 'update']); // For form-data with _method=PUT
         Route::delete('/{id}', [DoctorController::class, 'destroy']);
+        Route::get('/user/info',[DoctorController::class,'showByUserId']);
     });
 
 });
