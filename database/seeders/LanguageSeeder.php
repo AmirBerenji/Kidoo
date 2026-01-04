@@ -33,5 +33,9 @@ class LanguageSeeder extends Seeder
             ['name' => 'nurse'],
             ['name' => 'admin'],
         ]);
+        DB::table('child_tokens')->insert([
+            ['uuid' => 'AMIRBE', 'isused' => '0'],
+        ]);
+
     }
 }

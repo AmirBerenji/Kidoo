@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('child_tokens', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique();
+            $table->string('uuid', 10)->unique();
             $table->boolean('isused')->nullable();     // EMPTY initially
             $table->timestamp('useddate')->nullable(); // EMPTY initially
             $table->timestamps();

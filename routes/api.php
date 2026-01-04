@@ -66,6 +66,13 @@ Route::prefix('doctors')->group(function () {
 
 Route::prefix('childes')->group(function () {
     Route::get('/checkregister/{id}', [ChildController::class, 'checkregister']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/', [ChildController::class, 'index']);
+        Route::post('/', [ChildController::class, 'store']);
+        Route::get('/{child}', [ChildController::class, 'show']);
+        Route::put('/{child}', [ChildController::class, 'update']);
+        Route::delete('/{child}', [ChildController::class, 'destroy']);
+    });
 });
 
 
