@@ -38,37 +38,47 @@ class ChildController extends Controller
             'birthday'   => 'nullable|date',
             'blood_type' => 'nullable|string|max:10',
             'gender'     => 'nullable|string|max:10',
-            'uuid'        => 'nullable|string|max:10',
+            'uuid'       => 'nullable|string|max:255',
             'image'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
+        // Handle image upload
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-
             $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-            $path = $file->storeAs(
-                'children',
-                $filename,
-                'public'
-            );
-
+            $path = $file->storeAs('children', $filename, 'public');
             $validated['image'] = $path;
         }
 
         $validated['user_id'] = auth()->id();
 
+        // Create the child record
         $child = Child::create($validated);
+
+        // If uuid is provided, update the corresponding ChildToken
+        if (!empty($validated['uuid'])) {
+            $token = ChildToken::where('uuid', $validated['uuid'])->first();
+
+            if ($token) {
+                // Example update fields — modify based on your real schema
+                $token->update([
+                    'isused'  => true,
+                    'useddate'  => now(),
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'id'         => $child->id,
-                'name'       => $child->name,
-                'last_name'  => $child->last_name,
-                'image_url'  => $child->image
+                'id'        => $child->id,
+                'name'      => $child->name,
+                'last_name' => $child->last_name,
+                'image_url' => $child->image
                     ? Storage::disk('public')->url($child->image)
                     : null,
+                'gender'    => $child->gender,
             ]
         ], 201);
     }
@@ -147,6 +157,18 @@ class ChildController extends Controller
             return apiResponse(true,'Is not register',false,200);
         }else{
             return apiResponse(true,'Is register',true,200);
+        }
+    }
+
+    public function getchildbytoken(string $childtoken)
+    {
+        $child = Child::where('uuid',$childtoken)->first();
+        if ($child==null)
+        {
+            return apiResponse(false,'Token not found',null,500);
+        }else
+        {
+            return apiResponse(true,'',$child,200);
         }
     }
 }
