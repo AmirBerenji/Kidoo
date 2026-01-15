@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Child;
 use App\Models\ChildToken;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -162,7 +163,8 @@ class ChildController extends Controller
 
     public function getchildbytoken(string $childtoken)
     {
-        $child = Child::where('uuid',$childtoken)->first();
+        $child = Child::with('user')->where('uuid',$childtoken)->first();
+
         if ($child==null)
         {
             return apiResponse(false,'Token not found',null,500);
