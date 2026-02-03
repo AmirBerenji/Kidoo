@@ -18,14 +18,12 @@ class ChildController extends Controller
      */
     public function index(Request $request)
     {
-        $children = $request->user()
-            ->children()
+        $children = Child::where('user_id', auth()->id())
             ->latest()
             ->get();
 
-        return response()->json($children);
+        return apiResponse(true, "Children list", $children, 200);
     }
-
     /**
      * Store a new child
      */
