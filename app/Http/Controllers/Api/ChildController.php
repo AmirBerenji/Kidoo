@@ -60,11 +60,18 @@ class ChildController extends Controller
             $token = ChildToken::where('uuid', $validated['uuid'])->first();
 
             if ($token) {
-                // Example update fields — modify based on your real schema
-                $token->update([
-                    'isused'  => true,
-                    'useddate'  => now(),
-                ]);
+                if($token->isused == true)
+                {
+                    return apiResponse(false,'This tag is not valid for add',null,500);
+                }else {
+                    // Example update fields — modify based on your real schema
+                    $token->update([
+                        'isused' => true,
+                        'useddate' => now(),
+                    ]);
+                }
+            }else{
+                return apiResponse(false,'Your tag id is not fount. ' ,null,500);
             }
         }
 
