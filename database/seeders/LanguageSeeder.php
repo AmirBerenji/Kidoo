@@ -35,6 +35,8 @@ class LanguageSeeder extends Seeder
         ]);
         DB::table('child_tokens')->insert([
             ['uuid' => 'AMIRBE', 'isused' => '0'],
+            ['uuid' => 'TESTTT', 'isused' => '0'],
+            ['uuid' => 'MARALAM', 'isused' => '0'],
         ]);
 
     }

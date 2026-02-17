@@ -37,7 +37,7 @@ class ChildController extends Controller
             'birthday'   => 'nullable|date',
             'blood_type' => 'nullable|string|max:10',
             'gender'     => 'nullable|string|max:10',
-            'uuid'       => 'nullable|string|max:255',
+            'uuid'       => 'string|max:255',
             'image'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
