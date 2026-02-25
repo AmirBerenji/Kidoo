@@ -92,11 +92,14 @@ class ChildController extends Controller
     /**
      * Show a single child (only if belongs to user)
      */
-    public function show(Request $request, Child $child)
+    public function show(Request $request, $id)
     {
-        $this->authorizeChild($request, $child);
-
-        return response()->json($child);
+        $child = Child::find($id);
+        if (!$child) {
+            return apiResponse(false, "Child is not available", null, 404);
+        }
+         $this->authorizeChild($request, $child);
+        return apiResponse(true, "Child", $child, 200);
     }
 
     /**
@@ -107,24 +110,36 @@ class ChildController extends Controller
         $this->authorizeChild($request, $child);
 
         $validated = $request->validate([
-            'name'        => 'sometimes|required|string|max:255',
-            'last_name'   => 'sometimes|required|string|max:255',
-            'image'       => 'nullable|string',
-            'address'     => 'nullable|string',
-            'gender'     => 'nullable|string',
-            'uuid'     => 'nullable|string',
-            'birthday'    => 'nullable|date',
-            'blood_type'  => 'nullable|string|max:10',
+            'name'       => 'sometimes|required|string|max:255',
+            'last_name'  => 'sometimes|required|string|max:255',
+            'image'      => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // ← file, not string
+            'address'    => 'nullable|string',
+            'gender'     => 'nullable|in:Male,Female',  // ← match your frontend values (capital M/F)
+            'birthday'   => 'nullable|date',
+            'blood_type' => 'nullable|string|max:10',
         ]);
+
+        // Handle image upload separately
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($child->image) {
+                Storage::disk('public')->delete($child->image);
+            }
+            $validated['image'] = $request->file('image')->store('children', 'public');
+        } else {
+            // Don't overwrite existing image if no new one is sent
+            unset($validated['image']);
+        }
 
         $child->update($validated);
 
-        return response()->json([
-            'message' => 'Child updated successfully',
-            'data'    => $child
-        ]);
+        return apiResponse(
+            true,
+            'Child updated successfully',
+            $child->fresh(),
+            200
+        );
     }
-
     /**
      * Delete child
      */
@@ -169,6 +184,19 @@ class ChildController extends Controller
     public function getchildbytoken(string $childtoken)
     {
         $child = Child::with('user')->where('uuid',$childtoken)->first();
+
+        if ($child==null)
+        {
+            return apiResponse(false,'Token not found',null,500);
+        }else
+        {
+            return apiResponse(true,'',$child,200);
+        }
+    }
+
+    public function getchildbychildid(int $childid)
+    {
+        $child = Child::with('user')->where('id',$childid)->first();
 
         if ($child==null)
         {
