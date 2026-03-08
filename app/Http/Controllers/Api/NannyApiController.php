@@ -19,40 +19,50 @@ class NannyApiController extends Controller
 
     public function index(Request $request)
     {
-
         try {
             $query = Nanny::query();
 
+            // Select first
+            $query->select([
+                'id',
+                'user_id',
+                'gender',
+                'location_id',
+                'years_experience',
+                'working_hours',
+                'days_available',
+                'commitment_type',
+                'hourly_rate',
+                'contact_enabled',
+                'booking_type',
+                'is_verified',
+                'created_at',
+                'updated_at'
+            ]);
+
+            // Aggregates
+            $query->withCount('reviews')
+                ->withAvg('reviews', 'rating');
+
+            // Relations
             $query->with([
                 'location:id,name,state,country',
-                'translations' => function($q) {
-                    $q->select('id', 'nanny_id', 'language_code', 'full_name', 'specialization', 'age_groups');
+                'translations' => function ($q) {
+                    $q->select('id','nanny_id','language_code','full_name','specialization','age_groups');
                 },
                 'user',
-                'photos' => function($q) {
-                    $q->select('id', 'nanny_id', 'photo_url', 'is_profile_photo', 'order')
+                'photos' => function ($q) {
+                    $q->select('id','nanny_id','photo_url','is_profile_photo','order')
                         ->orderBy('order');
                 },
                 'languages:id,name,code'
             ]);
 
-            $query->withCount('reviews')
-                ->withAvg('reviews', 'rating');
-
-            $query->select([
-                'id', 'user_id', 'gender', 'location_id', 'years_experience',
-                'working_hours', 'days_available', 'commitment_type', 'hourly_rate',
-                'contact_enabled', 'booking_type', 'is_verified', 'created_at', 'updated_at'
-            ]);
-
-            //$this->applyFilters($query, $request);
-            //$this->applySorting($query, $request);
-
             $perPage = min($request->get('per_page', 15), 50);
             $nannies = $query->paginate($perPage);
 
             return apiResponse(true, '', [
-                'nannies' => NannyResource::collection($nannies->items()),
+                'nannies' => NannyResource::collection($nannies),
                 'pagination' => [
                     'current_page' => $nannies->currentPage(),
                     'last_page' => $nannies->lastPage(),
@@ -75,6 +85,8 @@ class NannyApiController extends Controller
             return apiResponse(false, 'Unable to retrieve nannies. Please try again.', null, 500);
         }
     }
+
+
 
     public function store(Request $request)
     {
