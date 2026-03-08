@@ -15,7 +15,6 @@ class NannyResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-
             'id' => $this->id,
             'gender' => $this->gender,
             'user' => new UserResource($this->whenLoaded('user')),
@@ -32,17 +31,20 @@ class NannyResource extends JsonResource
             'is_verified' => $this->is_verified,
             'video_intro_url' => $this->video_intro_url,
             'resume_url' => $this->resume_url,
-            'age_groups'=>$this->age_groups,
+            'age_groups' => $this->age_groups,
 
-            // Review statistics
+            // Review statistics — uses the appended aggregate attributes
             'reviews_count' => $this->reviews_count ?? 0,
-            'average_rating' => $this->reviews_avg_rating ? round($this->reviews_avg_rating, 1) : 0,
+            'average_rating' => $this->reviews_avg_rating
+                ? round((float) $this->reviews_avg_rating, 1)
+                : 0,
 
             'languages' => LanguageResource::collection($this->whenLoaded('languages')),
             'services' => ServiceResource::collection($this->whenLoaded('services')),
             'degrees' => DegreeResource::collection($this->whenLoaded('degrees')),
-            'translations' => $this->translations,
-            'photos' => $this->photos,
+            'translations' => $this->whenLoaded('translations'),
+            'photos' => $this->whenLoaded('photos'),
         ];
     }
+
 }
