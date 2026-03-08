@@ -19,12 +19,10 @@ class NannyApiController extends Controller
 
     public function index(Request $request)
     {
-        try {
 
-            // Start with base query
+        try {
             $query = Nanny::query();
 
-            // Essential relationships - load only what's needed
             $query->with([
                 'location:id,name,state,country',
                 'translations' => function($q) {
@@ -37,26 +35,23 @@ class NannyApiController extends Controller
                 },
                 'languages:id,name,code'
             ]);
+
             $query->withCount('reviews')
                 ->withAvg('reviews', 'rating');
-            // Performance optimization - select only needed columns
+
             $query->select([
                 'id', 'user_id', 'gender', 'location_id', 'years_experience',
                 'working_hours', 'days_available', 'commitment_type', 'hourly_rate',
                 'contact_enabled', 'booking_type', 'is_verified', 'created_at', 'updated_at'
             ]);
 
-            // Core filters
             //$this->applyFilters($query, $request);
-
-            // Sorting
             //$this->applySorting($query, $request);
 
-            // Pagination
             $perPage = min($request->get('per_page', 15), 50);
             $nannies = $query->paginate($perPage);
 
-            return apiResponse(true,"",[
+            return apiResponse(true, '', [
                 'nannies' => NannyResource::collection($nannies->items()),
                 'pagination' => [
                     'current_page' => $nannies->currentPage(),
@@ -67,7 +62,7 @@ class NannyApiController extends Controller
                 ],
                 'filters_applied' => $this->getAppliedFilters($request),
                 'total_available' => $nannies->total()
-            ],200);
+            ], 200);
 
         } catch (\Exception $e) {
             Log::error('Nannies Index Error', [
@@ -77,10 +72,9 @@ class NannyApiController extends Controller
                 'request_data' => $request->except(['photos'])
             ]);
 
-            return apiResponse(false,'Unable to retrieve nannies. Please try again.',null,500);
+            return apiResponse(false, 'Unable to retrieve nannies. Please try again.', null, 500);
         }
     }
-
 
     public function store(Request $request)
     {
