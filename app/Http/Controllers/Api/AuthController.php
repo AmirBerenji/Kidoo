@@ -26,7 +26,7 @@ public function register(Request $request)
     ]);
 
     if ($validator->fails()) {
-        return apiResponse(false, "Validation failed", $validator->errors(), 400);
+        return apiResponse(false, $validator->errors()->first(), $validator->errors()->messages(), 400);
     }
 
     // Check if user already exists
