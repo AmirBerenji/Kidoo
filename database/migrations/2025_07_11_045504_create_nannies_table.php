@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('working_hours')->nullable();
             $table->text('days_available')->nullable();
             $table->enum('commitment_type', ['Short-term', 'Long-term','Temporary'])->nullable();
-            $table->decimal('hourly_rate', 8, 2)->nullable();
+            $table->string('hourly_rate')->nullable();
             $table->text('fixed_package_description')->nullable();
             $table->boolean('contact_enabled')->default(true);
             $table->enum('booking_type', ['Direct', 'Interview','On Request'])->nullable();
