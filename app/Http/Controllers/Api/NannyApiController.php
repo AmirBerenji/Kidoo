@@ -102,7 +102,7 @@ class NannyApiController extends Controller
             'hourly_rate' => 'nullable|numeric|min:0',
             'fixed_package_description' => 'nullable|string',
             'contact_enabled' => 'required|boolean',
-            'booking_type' => 'nullable|in:direct,Interview,on_request',
+            'booking_type' => 'nullable|in:Direct, Interview,On Request',
             'availability_calendar' => 'nullable|array',
             'availability_calendar.*' => 'date',
             'is_verified' => 'required|boolean',
