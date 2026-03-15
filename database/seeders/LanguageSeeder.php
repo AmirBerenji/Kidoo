@@ -20,12 +20,12 @@ class LanguageSeeder extends Seeder
             ['code' => 'ru', 'name' => 'Russian'],
         ]);
         DB::table('locations')->insert([
-            ['city' => 'Yerevan', 'postal_code' => '0055'],
-            ['city' => 'Edjmiacin', 'postal_code' => '0056'],
-            ['city' => 'Gyumri', 'postal_code' => '0057'],
-            ['city' => 'Hrazdan', 'postal_code' => '0058'],
-            ['city' => 'Dilijan', 'postal_code' => '0058'],
-            ['city' => 'Jermuk', 'postal_code' => '0058'],
+            ['city' => 'Armenia,Yerevan', 'postal_code' => '0055'],
+            ['city' => 'Armenia,Edjmiacin', 'postal_code' => '0056'],
+            ['city' => 'Armenia,Gyumri', 'postal_code' => '0057'],
+            ['city' => 'Armenia,Hrazdan', 'postal_code' => '0058'],
+            ['city' => 'Armenia,Dilijan', 'postal_code' => '0058'],
+            ['city' => 'Armenia,Jermuk', 'postal_code' => '0058'],
         ]);
         DB::table('roles')->insert([
             ['name' => 'parent'],

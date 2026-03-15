@@ -99,7 +99,7 @@ class NannyApiController extends Controller
             'working_hours' => 'nullable|string',
             'days_available' => 'nullable|string',
             'commitment_type' => 'nullable|in:Short-term,Long-term,short_term,long_term,temporary',
-            'hourly_rate' => 'nullable|numeric|min:0',
+            'hourly_rate' => 'nullable|string',
             'fixed_package_description' => 'nullable|string',
             'contact_enabled' => 'required|boolean',
             'booking_type' => 'nullable|in:Direct, Interview,On Request',
