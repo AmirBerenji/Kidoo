@@ -41,6 +41,8 @@ class DoctorController extends Controller
             ->when($request->location_id, function($query) use ($request) {
                 $query->where('location_id', $request->location_id);
             })
+            ->withCount('reviews')
+                ->withAvg('reviews', 'rating')
             ->paginate($request->per_page ?? 15);
 
         return response()->json([
@@ -322,6 +324,10 @@ class DoctorController extends Controller
                     'address' => $trans->address,
                 ];
             }),
+            'reviews_count' => $doctor->reviews_count ?? 0,
+            'average_rating' => $doctor->reviews_avg_rating
+                ? round((float) $doctor->reviews_avg_rating, 1)
+                : 0,
             'created_at' => $doctor->created_at,
             'updated_at' => $doctor->updated_at,
         ];
