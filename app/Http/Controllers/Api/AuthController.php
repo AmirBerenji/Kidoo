@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Mail\ResetPasswordMail;
+use App\Mail\WelcomeMail;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -51,6 +55,23 @@ public function register(Request $request)
     $user->roles()->attach($role->id);
     // Create token
     $token = $user->createToken('auth_token')->plainTextToken;
+
+    try {
+        Mail::to($request->email)
+            ->send(new WelcomeMail(
+                $request->name,
+                $request->message ?? 'Welcome to our application!'  // ✅ request field stays the same
+            // WelcomeMail now maps it to $body internally
+            ));
+
+    } catch (\Exception $e) {
+
+    }
+
+
+
+
+
 
     return apiResponse(true, "User registered successfully", [
         'user'  => new UserResource($user->load('roles')), // include roles
@@ -310,6 +331,168 @@ public function register(Request $request)
     }
 
 
+
+// ============================================================
+// FORGOT PASSWORD - Sends reset code to email
+// ============================================================
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, $validator->errors()->first(), $validator->errors()->messages(), 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return apiResponse(false, "No account found with this email.", null, 404);
+        }
+
+        // Generate a 6-digit OTP code
+        $code = rand(100000, 999999);
+
+        // Store in password_reset_tokens table
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'email' => $request->email,
+                'token' => Hash::make($code),
+                'created_at' => now(),
+            ]
+        );
+
+        // Send email with the code
+        try {
+            Mail::to($request->email)->send(new ResetPasswordMail($user->name, $code));
+        } catch (\Exception $e) {
+            return apiResponse(false, "Failed to send reset email. Please try again.", null, 500);
+        }
+
+        return apiResponse(true, "Password reset code sent to your email.", null, 200);
+    }
+
+
+// ============================================================
+// VERIFY RESET CODE - Validates the OTP before allowing reset
+// ============================================================
+    public function verifyResetCode(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'code' => 'required|digits:6',
+        ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, $validator->errors()->first(), $validator->errors()->messages(), 400);
+        }
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record) {
+            return apiResponse(false, "No reset request found for this email.", null, 404);
+        }
+
+        // Check if code is expired (15 minutes)
+        if (now()->diffInMinutes($record->created_at) > 15) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return apiResponse(false, "Reset code has expired. Please request a new one.", null, 400);
+        }
+
+        if (!Hash::check($request->code, $record->token)) {
+            return apiResponse(false, "Invalid reset code.", null, 400);
+        }
+
+        return apiResponse(true, "Code verified successfully.", null, 200);
+    }
+
+
+// ============================================================
+// RESET PASSWORD - Resets password using the OTP code
+// ============================================================
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'code' => 'required|digits:6',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, $validator->errors()->first(), $validator->errors()->messages(), 400);
+        }
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record) {
+            return apiResponse(false, "No reset request found for this email.", null, 404);
+        }
+
+        // Check if code is expired (15 minutes)
+        if (now()->diffInMinutes($record->created_at) > 15) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return apiResponse(false, "Reset code has expired. Please request a new one.", null, 400);
+        }
+
+        if (!Hash::check($request->code, $record->token)) {
+            return apiResponse(false, "Invalid reset code.", null, 400);
+        }
+
+        // Update the user's password
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return apiResponse(false, "User not found.", null, 404);
+        }
+
+        $user->update(['password' => Hash::make($request->password)]);
+
+        // Delete used token
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        // Revoke all existing tokens (force re-login)
+        $user->tokens()->delete();
+
+        return apiResponse(true, "Password reset successfully. Please login again.", null, 200);
+    }
+
+
+// ============================================================
+// CHANGE PASSWORD - For authenticated users only
+// ============================================================
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return apiResponse(false, $validator->errors()->first(), $validator->errors()->messages(), 400);
+        }
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return apiResponse(false, "Current password is incorrect.", null, 400);
+        }
+
+        if (Hash::check($request->password, $user->password)) {
+            return apiResponse(false, "New password must be different from the current password.", null, 400);
+        }
+
+        $user->update(['password' => Hash::make($request->password)]);
+
+        // Revoke all tokens except the current one
+        $user->tokens()->where('id', '!=', $request->user()->currentAccessToken()->id)->delete();
+
+        return apiResponse(true, "Password changed successfully.", null, 200);
+    }
 
 
 }

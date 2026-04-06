@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChildController;
 use App\Http\Controllers\Api\DegreeController;
 use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\LanguageApiController;
 use App\Http\Controllers\Api\LocationApicontroller;
 use App\Http\Controllers\Api\NannyApiController;
@@ -15,6 +16,10 @@ Route::prefix('user')->group(function () {
     // Public routes
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+    Route::post('forgot-password',      [AuthController::class, 'forgotPassword']);
+    Route::post('verify-reset-code',    [AuthController::class, 'verifyResetCode']);
+    Route::post('reset-password',       [AuthController::class, 'resetPassword']);
+
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -22,6 +27,7 @@ Route::prefix('user')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::put('update', [AuthController::class, 'update']);
         Route::post('photo',[AuthController::class, 'updatePhoto']);
+        Route::post('change-password',  [AuthController::class, 'changePassword']);
     });
 });
 
@@ -77,6 +83,10 @@ Route::prefix('childes')->group(function () {
     });
 });
 
+Route::prefix('email')->group(function () {
+    Route::post('/send-welcome', [EmailController::class, 'sendWelcome']);
+    Route::post('/send-custom',  [EmailController::class, 'sendCustom']);
+});
 
 Route::apiResource('locations', LocationApicontroller::class);
 Route::apiResource('languages', LanguageApiController::class);
