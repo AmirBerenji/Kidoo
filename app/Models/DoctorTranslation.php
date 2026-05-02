@@ -9,6 +9,8 @@ class DoctorTranslation extends Model
 {
     use HasFactory;
 
+    protected $table = 'doctor_translations';
+
     protected $fillable = [
         'doctor_id',
         'language_id',
@@ -16,17 +18,24 @@ class DoctorTranslation extends Model
         'bio',
         'education',
         'address',
+        'latitude',
+        'longitude',
     ];
 
-    // Relationship with doctor
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+    ];
+
+    // Relationship with Doctor
     public function doctor()
     {
-        return $this->belongsTo(Doctor::class);
+        return $this->belongsTo(Doctor::class, 'doctor_id');
     }
 
-    // Relationship with language
+    // Relationship with Language
     public function language()
     {
-        return $this->belongsTo(Language::class);
+        return $this->belongsTo(Language::class, 'language_id');
     }
 }
