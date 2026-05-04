@@ -72,7 +72,7 @@ Route::prefix('doctors')->group(function () {
 
 Route::prefix('childes')->group(function () {
     Route::get('/checkregister/{id}', [ChildController::class, 'checkregister']);
-    Route::get('/getchildbytoken/{id}', [ChildController::class, 'getchildbytoken']);
+    Route::get('/getchildbytoken', [ChildController::class, 'getchildbytoken']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ChildController::class, 'index']);

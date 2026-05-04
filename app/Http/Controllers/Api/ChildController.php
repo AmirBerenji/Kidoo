@@ -9,6 +9,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Mail\ChildTagScannedMail;
+use Illuminate\Support\Facades\Mail;
 
 class ChildController extends Controller
 {
@@ -181,8 +183,12 @@ class ChildController extends Controller
         }
     }
 
-    public function getchildbytoken(string $childtoken)
+    public function getchildbytoken(Request $request)
     {
+        $childtoken = $request->query('childtoken');
+        $lat = $request->query('lat');
+        $lng = $request->query('lng');
+
         $child = Child::with('user')->where('uuid',$childtoken)->first();
 
         if ($child==null)
@@ -190,6 +196,14 @@ class ChildController extends Controller
             return apiResponse(false,'Token not found',null,500);
         }else
         {
+            Mail::to($child->user->email)->send(
+                new ChildTagScannedMail(
+                    childName: $child->name,
+                    lat: $lat,
+                    lng: $lng,
+                    scannedAt: now()->format('Y-m-d H:i:s'),
+                )
+            );
             return apiResponse(true,'',$child,200);
         }
     }
