@@ -41,6 +41,7 @@ class ChildController extends Controller
             'gender'     => 'nullable|string|max:10',
             'uuid'       => 'string|max:255',
             'image'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'description' => 'nullable|string|max:1000'
         ]);
 
         // Handle image upload
@@ -119,6 +120,7 @@ class ChildController extends Controller
             'gender'     => 'nullable|in:Male,Female',  // ← match your frontend values (capital M/F)
             'birthday'   => 'nullable|date',
             'blood_type' => 'nullable|string|max:10',
+            'description' => 'nullable|string|max:1000'
         ]);
 
         // Handle image upload separately

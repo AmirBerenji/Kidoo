@@ -16,7 +16,8 @@ class Child extends Model
         'birthday',
         'blood_type',
         'gender',
-        'uuid'
+        'uuid',
+        'description'
     ];
 
     public function user(): BelongsTo
